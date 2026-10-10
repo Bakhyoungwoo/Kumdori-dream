@@ -1,0 +1,24 @@
+[project]
+name = "ourcut-ai-engine"
+version = "0.0.1"
+description = "OURCUT AI compose engine"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "aiokafka",
+    "rembg",
+    "mediapipe",
+    "opencv-python-headless",
+    "pillow",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
