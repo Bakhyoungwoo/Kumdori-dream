@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "OURCUT",
+    "slug": "ourcut",
+    "scheme": "ourcut",
+    "version": "0.0.1",
+    "orientation": "portrait"
+  }
+}
