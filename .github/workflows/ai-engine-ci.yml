@@ -1,0 +1,13 @@
+name: ai-engine-ci
+
+on:
+  pull_request:
+    paths:
+      - "ai-engine/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: Python 의존성 설치/테스트 스텝 추가 예정

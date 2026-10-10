@@ -1,0 +1,13 @@
+name: backend-ci
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: Gradle 빌드/테스트 스텝 추가 예정

@@ -1,0 +1,11 @@
+name: deploy
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: EC2 배포 스텝 추가 예정
