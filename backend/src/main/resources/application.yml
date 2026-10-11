@@ -3,9 +3,9 @@ spring:
     name: ourcut-backend
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/ourcut
-    username: ourcut
-    password: ourcut
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ourcut}
+    username: ${DB_USERNAME:ourcut}
+    password: ${DB_PASSWORD:ourcut}
 
   jpa:
     hibernate:
@@ -26,3 +26,19 @@ spring:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: ${JWT_ACCESS_EXPIRATION:1800000}
+    refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:2592000000}
