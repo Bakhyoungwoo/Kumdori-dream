@@ -16,6 +16,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Role role = Role.USER;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
     @Column(nullable = false)
@@ -32,6 +35,8 @@ public class User {
     public String getEmail() { return email; }
     public String getNickname() { return nickname; }
     public UserStatus getStatus() { return status; }
+    public Role getRole() { return role; }
+    public void changeRole(Role role) { this.role = role; }
 
     @PreUpdate
     private void updateTimestamp() {

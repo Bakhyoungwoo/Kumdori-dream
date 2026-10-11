@@ -6,12 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    public record ErrorResponse(Instant timestamp, int status, String code, String message) {}
-
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<ErrorResponse> handleAuth(AuthException exception) {
         return response(exception.getErrorCode());
@@ -28,7 +25,6 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponse> response(ErrorCode errorCode) {
-        return ResponseEntity.status(errorCode.status())
-            .body(new ErrorResponse(Instant.now(), errorCode.status().value(), errorCode.code(), errorCode.message()));
+        return ResponseEntity.status(errorCode.status()).body(ErrorResponse.of(errorCode));
     }
 }

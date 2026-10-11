@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 users.findById(userId)
                     .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                     .ifPresent(user -> SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(userId, null, List.of(new SimpleGrantedAuthority("ROLE_USER")))));
+                        new UsernamePasswordAuthenticationToken(userId, null, List.of(new SimpleGrantedAuthority(user.getRole().authority())))));
             } catch (JwtException | IllegalArgumentException ignored) {
                 // Invalid access tokens remain unauthenticated and are rejected by Spring Security.
             }
