@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { colors, fonts, radius, shadow } from '@/theme/tokens';
 
 type Props = {
@@ -8,29 +8,30 @@ type Props = {
   variant?: 'primary' | 'secondary';
   icon?: ReactNode;
   disabled?: boolean;
+  loading?: boolean;
   style?: ViewStyle;
 };
 
-export function Button({ title, onPress, variant = 'primary', icon, disabled, style }: Props) {
+export function Button({ title, onPress, variant = 'primary', icon, disabled, loading = false, style }: Props) {
   const primary = variant === 'primary';
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
-      disabled={disabled}
+      disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
         primary ? styles.primary : styles.secondary,
         primary && !disabled && shadow.cta,
         pressed && (primary ? styles.primaryPressed : styles.secondaryPressed),
-        disabled && styles.disabled,
+        (disabled || loading) && styles.disabled,
         style,
       ]}
     >
       <View style={styles.row}>
-        {icon}
-        <Text style={[styles.text, primary ? styles.primaryText : styles.secondaryText]}>{title}</Text>
+        {loading ? <ActivityIndicator color={colors.ink} /> : icon}
+        {!loading && <Text style={[styles.text, primary ? styles.primaryText : styles.secondaryText]}>{title}</Text>}
       </View>
     </Pressable>
   );
