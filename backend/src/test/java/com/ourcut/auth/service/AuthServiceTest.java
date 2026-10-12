@@ -1,15 +1,15 @@
-package com.ourcut.auth.application;
+package com.ourcut.auth.service;
 
-import com.ourcut.auth.api.AuthDtos;
+import com.ourcut.auth.dto.AuthDtos;
 import com.ourcut.auth.domain.AuthIdentity;
 import com.ourcut.auth.domain.AuthProvider;
 import com.ourcut.auth.domain.RefreshSession;
-import com.ourcut.auth.infra.AuthIdentityRepository;
-import com.ourcut.auth.infra.RefreshSessionRepository;
+import com.ourcut.auth.repository.AuthIdentityRepository;
+import com.ourcut.auth.repository.RefreshSessionRepository;
 import com.ourcut.auth.security.JwtTokenProvider;
 import com.ourcut.global.error.AuthException;
 import com.ourcut.user.domain.User;
-import com.ourcut.user.infra.UserRepository;
+import com.ourcut.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

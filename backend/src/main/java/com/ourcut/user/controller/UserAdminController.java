@@ -1,6 +1,7 @@
-package com.ourcut.user.api;
+package com.ourcut.user.controller;
 
-import com.ourcut.user.application.UserAdminService;
+import com.ourcut.user.service.UserAdminService;
+import com.ourcut.user.dto.UserDtos;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

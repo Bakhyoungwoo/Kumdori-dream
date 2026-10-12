@@ -1,6 +1,7 @@
-package com.ourcut.auth.api;
+package com.ourcut.auth.controller;
 
-import com.ourcut.auth.application.AuthService;
+import com.ourcut.auth.service.AuthService;
+import com.ourcut.auth.dto.AuthDtos;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

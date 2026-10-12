@@ -1,4 +1,4 @@
-package com.ourcut.auth.api;
+package com.ourcut.auth.dto;
 
 import jakarta.validation.constraints.*;
 

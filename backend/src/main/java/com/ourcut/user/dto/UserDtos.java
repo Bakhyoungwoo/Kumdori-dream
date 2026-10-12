@@ -1,4 +1,4 @@
-package com.ourcut.user.api;
+package com.ourcut.user.dto;
 
 import com.ourcut.user.domain.Role;
 import com.ourcut.user.domain.UserStatus;

@@ -1,7 +1,7 @@
 package com.ourcut.auth.security;
 
 import com.ourcut.user.domain.UserStatus;
-import com.ourcut.user.infra.UserRepository;
+import com.ourcut.user.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
