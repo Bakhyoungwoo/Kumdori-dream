@@ -39,14 +39,20 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, initializing, welcomeNickname } = useAuth();
+  if (initializing) return null;
+  const welcoming = isSignedIn && !!welcomeNickname;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Protected guard={isSignedIn}>
+      <Stack.Protected guard={isSignedIn && !welcoming}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="frames/[id]/shoot" />
         <Stack.Screen name="frames/[id]/settings" />
         <Stack.Screen name="jobs/[id]" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      {/* 가입 직후에는 환영 화면만 열린다. "첫 네컷 만들러 가기"를 누르면 홈으로 전환 */}
+      <Stack.Protected guard={welcoming}>
+        <Stack.Screen name="welcome" options={{ gestureEnabled: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="(auth)" />
