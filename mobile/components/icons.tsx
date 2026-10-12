@@ -129,3 +129,22 @@ export function CloseIcon({ size = 14, color = colors.white }: IconProps) {
     </Svg>
   );
 }
+
+export function EyeIcon({ size = 22, color = colors.inkSub, filled: off }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" {...stroke(color)} />
+      <Circle cx={12} cy={12} r={3} {...stroke(color)} />
+      {off && <Path d="M4 4l16 16" {...stroke(color)} />}
+    </Svg>
+  );
+}
+
+export function AlertIcon({ size = 18, color = '#C0353A' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx={12} cy={12} r={10} fill={color} />
+      <Path d="M12 7v6M12 16.5v.5" stroke="#FFFFFF" strokeWidth={2.4} strokeLinecap="round" />
+    </Svg>
+  );
+}
