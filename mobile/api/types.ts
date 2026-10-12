@@ -39,4 +39,5 @@ export type CreateJobRequest = {
 
 export type CreateJobResponse = { jobId: string; pipelineType: PipelineType };
 
+/** 생성형(GENERATIVE) 합성의 오늘 남은 **이미지 장수**. 기본 합성(CV)은 쿼터를 쓰지 않는다 */
 export type Quota = { remaining: number; limit: number };

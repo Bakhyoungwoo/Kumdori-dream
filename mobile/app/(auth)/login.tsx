@@ -1,56 +1,108 @@
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mascot } from '@/components/Mascot';
+import { Link } from 'expo-router';
+import { ApiError } from '@/api/client';
 import { Button } from '@/components/Button';
-import { GoogleIcon } from '@/components/icons';
+import { FormAlert } from '@/components/FormAlert';
+import { Mascot } from '@/components/Mascot';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { TextField } from '@/components/TextField';
 import { useAuth } from '@/hooks/useAuth';
+import { validateEmail } from '@/lib/validation';
 import { colors, fonts, layout, type } from '@/theme/tokens';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
-  const { height } = useWindowDimensions();
-  // 작은 화면(568pt 등)에서도 버튼까지 한 화면에 들어오도록 마스코트를 높이에 맞춘다
-  const mascotSize = Math.round(Math.min(270, Math.max(150, height * 0.3)));
-  const compact = height < 700;
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const passwordRef = useRef<TextInput>(null);
+
+  const emailError = submitted ? validateEmail(email) : null;
+  const passwordError = submitted && !password ? '비밀번호를 입력해 주세요.' : null;
+
+  async function submit() {
+    setSubmitted(true);
+    setFormError(null);
+    if (validateEmail(email) || !password) return;
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+    } catch (e) {
+      // AUTH_001(이메일·비밀번호 불일치), AUTH_004(비활성 계정), 네트워크 오류 모두 서버 문구를 그대로 보여준다
+      setFormError(e instanceof ApiError ? e.message : '잠시 후 다시 시도해 주세요.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
-        <View style={styles.inner}>
-          <View style={[styles.top, compact && { gap: 4 }]}>
-            <Text style={[styles.logo, compact && { marginBottom: 4 }]} accessibilityRole="header">
-              OURCUT<Text style={{ color: colors.primary }}>.</Text>
+      <ScreenHeader title="" />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.hero}>
+            <Mascot pose="hello" size={68} />
+            <Text style={styles.title} accessibilityRole="header">
+              다시 만나서{'\n'}반가워요
             </Text>
-            <Mascot pose="strip" size={mascotSize} decor label="네컷 사진 스트립을 든 OURCUT 마스코트" />
-            <Text style={[styles.headline, compact && styles.headlineCompact]}>좋아하는 사람과{'\n'}한 컷에 담아요</Text>
-            <Text style={styles.sub}>사진 한 장이면 네컷도, 춤 영상도 만들 수 있어요.</Text>
           </View>
 
-          <View style={styles.actions}>
-            <Button
-              variant="secondary"
-              title="Google로 계속하기"
-              icon={<GoogleIcon />}
-              onPress={() => signIn('google')}
-            />
-            <Button title="이메일로 시작하기" onPress={() => signIn('email')} />
-            <Text style={styles.terms}>계속하면 이용약관 및 개인정보 처리방침에 동의하게 돼요.</Text>
-          </View>
+          <TextField
+            label="이메일"
+            value={email}
+            onChangeText={(t) => {
+              setEmail(t);
+              setFormError(null);
+            }}
+            error={emailError}
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+          />
+          <TextField
+            ref={passwordRef}
+            label="비밀번호"
+            value={password}
+            onChangeText={(t) => {
+              setPassword(t);
+              setFormError(null);
+            }}
+            error={passwordError}
+            password
+            autoComplete="current-password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={submit}
+          />
+          {formError && <FormAlert message={formError} />}
+        </ScrollView>
+
+        <View style={styles.bottom}>
+          <Button title="로그인" loading={loading} onPress={submit} />
+          <Text style={styles.footer}>
+            처음이신가요?{' '}
+            <Link href="/signup" replace style={styles.link}>
+              회원가입
+            </Link>
+          </Text>
         </View>
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.cream },
-  scroll: { flexGrow: 1, paddingHorizontal: 24 },
-  inner: { flex: 1, width: '100%', maxWidth: layout.maxFormWidth, alignSelf: 'center', gap: 24 },
-  top: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 16 },
-  logo: { fontFamily: fonts.display, fontSize: 26, color: colors.ink, marginBottom: 12 },
-  headline: { ...type.display, fontSize: 32, lineHeight: 40, textAlign: 'center', marginTop: 16 },
-  headlineCompact: { fontSize: 26, lineHeight: 33, marginTop: 8 },
-  sub: { ...type.body, color: colors.inkSub, textAlign: 'center' },
-  actions: { gap: 12, paddingBottom: 12 },
-  terms: { ...type.caption, textAlign: 'center', marginTop: 4 },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  content: { width: '100%', maxWidth: layout.maxFormWidth, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 8, gap: 16 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  title: { ...type.display, fontSize: 28 },
+  bottom: { width: '100%', maxWidth: layout.maxFormWidth, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 16, gap: 14 },
+  footer: { ...type.body, fontSize: 14, color: colors.inkSub, textAlign: 'center' },
+  link: { fontFamily: fonts.bold, color: colors.primaryText },
 });

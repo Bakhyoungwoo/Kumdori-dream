@@ -1,13 +1,14 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { getQuota } from '@/api/frames';
 import { ModeCard } from '@/components/ModeCard';
+import { useAsync } from '@/hooks/useAsync';
 import { QuotaBadge } from '@/components/QuotaBadge';
 import { BellIcon } from '@/components/icons';
 import { colors, fonts, layout, radius, type } from '@/theme/tokens';
 
-// TODO: GET /api/v1/me/quota, 최근 결과 API로 교체
-const quota = { remaining: 3, limit: 5 };
+// TODO: 최근 결과 API(GET /api/v1/gallery)로 교체
 const recent = [
   ['#F7B9A6', '#B9C3F7', '#F9D68A', '#A8DCC6'],
   ['#FDE3D6', '#E4E2FB', '#FDE3D6', '#E4E2FB'],
@@ -15,7 +16,8 @@ const recent = [
 ];
 
 export default function HomeScreen() {
-  const blocked = quota.remaining <= 0;
+  // 쿼터는 생성형에만 적용되므로 모드 카드는 막지 않는다 (기본 합성은 항상 무료)
+  const { data: quota } = useAsync(getQuota, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -32,11 +34,11 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <QuotaBadge remaining={quota.remaining} limit={quota.limit} />
+        {quota && <QuotaBadge remaining={quota.remaining} limit={quota.limit} />}
 
         <View style={styles.modes}>
-          <ModeCard mode="photo" disabled={blocked} onPress={() => router.push('/frames')} />
-          <ModeCard mode="video" disabled={blocked} />
+          <ModeCard mode="photo" onPress={() => router.push('/frames')} />
+          <ModeCard mode="video" />
         </View>
 
         <View style={styles.sectionHead}>

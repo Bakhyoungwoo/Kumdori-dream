@@ -1,18 +1,19 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts, radius } from '@/theme/tokens';
 
-type Props = { label: string; selected?: boolean; onPress?: () => void };
+type Props = { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void };
 
 /** 결과 장수, 화면비 같은 단일 선택 옵션 */
-export function Chip({ label, selected, onPress }: Props) {
+export function Chip({ label, selected, disabled, onPress }: Props) {
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ selected: !!selected }}
+      accessibilityState={{ selected: !!selected, disabled: !!disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={[styles.chip, selected && styles.selected]}
+      style={[styles.chip, selected && styles.selected, disabled && styles.disabled]}
     >
-      <Text style={[styles.text, selected && styles.selectedText]}>{label}</Text>
+      <Text style={[styles.text, selected && styles.selectedText, disabled && styles.disabledText]}>{label}</Text>
     </Pressable>
   );
 }
@@ -32,4 +33,6 @@ const styles = StyleSheet.create({
   selected: { borderColor: colors.primaryText, backgroundColor: colors.primarySoft },
   text: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   selectedText: { fontFamily: fonts.bold, color: '#9E3712' },
+  disabled: { borderColor: colors.border, backgroundColor: colors.surface },
+  disabledText: { color: colors.inkSub },
 });

@@ -49,9 +49,12 @@ export default function SettingsScreen() {
   }
 
   const generative = mode === 'GENERATIVE';
-  const noQuota = generative && quota != null && quota.remaining <= 0;
+  const remaining = quota?.remaining ?? 0;
+  const noQuota = generative && quota != null && remaining <= 0;
+  // 남은 장수를 넘는 장수는 고를 수 없다 (요청 시 imageCount만큼 선차감)
+  const overQuota = generative && quota != null && imageCount > remaining;
   const needsText = generative && requirement.trim().length === 0;
-  const canSubmit = consent && !needsText && !noQuota && !submitting;
+  const canSubmit = consent && !needsText && !noQuota && !overQuota && !submitting;
 
   async function submit() {
     if (!frame) return;
@@ -152,7 +155,12 @@ export default function SettingsScreen() {
                 <View style={styles.counts} accessibilityRole="radiogroup">
                   {COUNTS.map((n) => (
                     <View key={n} style={{ flex: 1 }}>
-                      <Chip label={`${n}장`} selected={imageCount === n} onPress={() => setImageCount(n)} />
+                      <Chip
+                        label={`${n}장`}
+                        selected={imageCount === n}
+                        disabled={quota != null && n > remaining}
+                        onPress={() => setImageCount(n)}
+                      />
                     </View>
                   ))}
                 </View>
@@ -174,10 +182,11 @@ export default function SettingsScreen() {
           <Text style={styles.estimate}>
             {generative ? (
               noQuota ? (
-                '오늘 생성형 쿼터를 모두 썼어요. 기본 합성은 계속 쓸 수 있어요.'
+                '오늘 생성형 한도를 모두 썼어요. 기본 합성은 계속 쓸 수 있어요.'
               ) : (
                 <>
-                  예상 약 40초 · 오늘 남은 쿼터 <Text style={styles.estimateStrong}>{quota?.remaining ?? '-'}회</Text>
+                  예상 약 40초 · 이번에 <Text style={styles.estimateStrong}>{imageCount}장</Text> 차감 · 오늘 남은{' '}
+                  <Text style={styles.estimateStrong}>{quota ? `${remaining}장` : '-'}</Text>
                 </>
               )
             ) : (

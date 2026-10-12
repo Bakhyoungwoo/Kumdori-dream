@@ -47,7 +47,8 @@ export async function getFrame(id: number): Promise<FrameDetail | null> {
 
 export async function getQuota(): Promise<Quota> {
   await delay(100);
-  return { remaining: 3, limit: 5 };
+  // 계획서 기준: 사용자당 하루 10장, 요청 시 imageCount만큼 선차감
+  return { remaining: 10, limit: 10 };
 }
 
 export async function createJob(req: CreateJobRequest): Promise<CreateJobResponse> {
