@@ -42,6 +42,11 @@ services:
 
   backend:
     build: ../backend
+    environment:
+      JWT_SECRET: local-development-secret-change-me-please-32chars
+      DB_URL: jdbc:postgresql://postgres:5432/ourcut
+      DB_USERNAME: ourcut
+      DB_PASSWORD: ourcut
     depends_on:
       - postgres
       - redis
