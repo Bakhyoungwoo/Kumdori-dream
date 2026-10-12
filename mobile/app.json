@@ -4,6 +4,30 @@
     "slug": "ourcut",
     "scheme": "ourcut",
     "version": "0.0.1",
-    "orientation": "portrait"
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFFFF",
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFF4E8",
+          "image": "./assets/images/mascot-strip.png",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "icon": "./assets/images/app-icon.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/app-icon.png",
+        "backgroundColor": "#FFF4E8"
+      }
+    }
   }
 }

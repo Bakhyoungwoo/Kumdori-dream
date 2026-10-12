@@ -29,3 +29,6 @@ Thumbs.db
 
 # docs
 docs
+
+# Expo 자동 생성
+mobile/expo-env.d.ts
