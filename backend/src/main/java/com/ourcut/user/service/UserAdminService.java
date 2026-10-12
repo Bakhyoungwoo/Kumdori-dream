@@ -1,7 +1,7 @@
-package com.ourcut.user.application;
+package com.ourcut.user.service;
 
-import com.ourcut.user.api.UserDtos;
-import com.ourcut.user.infra.UserRepository;
+import com.ourcut.user.dto.UserDtos;
+import com.ourcut.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 

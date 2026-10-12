@@ -1,4 +1,4 @@
-package com.ourcut.user.infra;
+package com.ourcut.user.repository;
 import com.ourcut.user.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;

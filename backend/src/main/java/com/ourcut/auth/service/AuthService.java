@@ -1,12 +1,12 @@
-package com.ourcut.auth.application;
+package com.ourcut.auth.service;
 
-import com.ourcut.auth.api.AuthDtos;
+import com.ourcut.auth.dto.AuthDtos;
 import com.ourcut.auth.domain.*;
-import com.ourcut.auth.infra.*;
+import com.ourcut.auth.repository.*;
 import com.ourcut.auth.security.JwtTokenProvider;
 import com.ourcut.user.domain.User;
 import com.ourcut.user.domain.UserStatus;
-import com.ourcut.user.infra.UserRepository;
+import com.ourcut.user.repository.UserRepository;
 import com.ourcut.global.error.AuthException;
 import com.ourcut.global.error.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;

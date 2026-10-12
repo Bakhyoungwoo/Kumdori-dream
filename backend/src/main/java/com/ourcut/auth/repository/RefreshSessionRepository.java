@@ -1,4 +1,4 @@
-package com.ourcut.auth.infra;
+package com.ourcut.auth.repository;
 import com.ourcut.auth.domain.RefreshSession;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;

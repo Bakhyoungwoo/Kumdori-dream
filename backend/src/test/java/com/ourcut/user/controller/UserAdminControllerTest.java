@@ -1,11 +1,11 @@
-package com.ourcut.user.api;
+package com.ourcut.user.controller;
 
 import com.ourcut.auth.security.JwtTokenProvider;
 import com.ourcut.global.config.SecurityConfig;
 import com.ourcut.global.security.RestAccessDeniedHandler;
 import com.ourcut.global.security.RestAuthenticationEntryPoint;
-import com.ourcut.user.application.UserAdminService;
-import com.ourcut.user.infra.UserRepository;
+import com.ourcut.user.service.UserAdminService;
+import com.ourcut.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
