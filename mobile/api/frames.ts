@@ -1,3 +1,4 @@
+import { registerJob } from './gallery';
 import type { Artist, CreateJobRequest, CreateJobResponse, FrameDetail, FrameSummary, Quota } from './types';
 
 // TODO: core-api 연동 전까지 쓰는 목업. 함수 시그니처는 실제 API와 맞춰 두었다.
@@ -53,5 +54,8 @@ export async function getQuota(): Promise<Quota> {
 
 export async function createJob(req: CreateJobRequest): Promise<CreateJobResponse> {
   await delay(400);
-  return { jobId: `mock-${Date.now()}`, pipelineType: req.requirementText ? 'GENERATIVE' : 'CV' };
+  const jobId = `mock-${Date.now()}`;
+  const frame = frames.find((f) => f.id === req.frameId);
+  registerJob(jobId, req, { title: frame?.title ?? '네컷', tints: frame?.tints ?? ['#FDE3D6'] });
+  return { jobId, pipelineType: req.requirementText ? 'GENERATIVE' : 'CV' };
 }
