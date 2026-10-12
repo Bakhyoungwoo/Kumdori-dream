@@ -77,3 +77,55 @@ export function GoogleIcon({ size = 20 }: { size?: number }) {
     </Svg>
   );
 }
+
+export function BackIcon({ size = 24, color = colors.ink }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M15 5l-7 7 7 7" {...stroke(color)} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+export function SearchIcon({ size = 20, color = colors.inkSub }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx={11} cy={11} r={7} {...stroke(color)} />
+      <Path d="M20 20l-4-4" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+export function CameraIcon({ size = 20, color = colors.ink }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M4 8h3l2-3h6l2 3h3v11H4z" {...stroke(color)} />
+      <Circle cx={12} cy={13} r={3.5} {...stroke(color)} />
+    </Svg>
+  );
+}
+
+export function AlbumIcon({ size = 20, color = colors.ink }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={3} y={4} width={18} height={16} rx={3} {...stroke(color)} />
+      <Circle cx={9} cy={10} r={2} {...stroke(color)} />
+      <Path d="M21 16l-5-5-9 9" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+export function CheckIcon({ size = 16, color = colors.white }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M5 12.5l4.5 4.5L19 7.5" {...stroke(color)} strokeWidth={2.6} />
+    </Svg>
+  );
+}
+
+export function CloseIcon({ size = 14, color = colors.white }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M6 6l12 12M18 6L6 18" {...stroke(color)} strokeWidth={2.6} />
+    </Svg>
+  );
+}
