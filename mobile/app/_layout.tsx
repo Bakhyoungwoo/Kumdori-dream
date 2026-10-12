@@ -49,6 +49,7 @@ function RootStack() {
         <Stack.Screen name="frames/[id]/shoot" />
         <Stack.Screen name="frames/[id]/settings" />
         <Stack.Screen name="jobs/[id]" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="results/[id]" options={{ animation: 'fade', contentStyle: { backgroundColor: colors.bgDark } }} />
       </Stack.Protected>
       {/* 가입 직후에는 환영 화면만 열린다. "첫 네컷 만들러 가기"를 누르면 홈으로 전환 */}
       <Stack.Protected guard={welcoming}>

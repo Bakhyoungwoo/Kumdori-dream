@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Button } from '@/components/Button';
 import { Mascot } from '@/components/Mascot';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { updateMockJob } from '@/api/gallery';
 import { composeDraft } from '@/hooks/useComposeDraft';
 import { colors, fonts, layout, radius, type } from '@/theme/tokens';
 
@@ -23,7 +24,11 @@ function useMockProgress() {
 }
 
 export default function JobScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const progress = useMockProgress();
+  useEffect(() => {
+    updateMockJob(id, progress); // 목업: 갤러리 항목에도 진행률 반영
+  }, [id, progress]);
   useEffect(() => {
     // 요청이 접수됐으니 작성 중이던 입력은 비운다
     composeDraft.reset();
@@ -72,7 +77,7 @@ export default function JobScreen() {
 
       <View style={styles.bottom}>
         {done ? (
-          <Button title="갤러리에서 보기" onPress={() => router.replace('/gallery')} />
+          <Button title="결과 보기" onPress={() => router.replace(`/results/${id}`)} />
         ) : (
           <>
             <Text style={[type.caption, { textAlign: 'center' }]}>앱을 닫아도 작업은 계속돼요. 완료되면 알려드릴게요.</Text>

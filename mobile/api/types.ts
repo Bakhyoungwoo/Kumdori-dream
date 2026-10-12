@@ -41,3 +41,29 @@ export type CreateJobResponse = { jobId: string; pipelineType: PipelineType };
 
 /** 생성형(GENERATIVE) 합성의 오늘 남은 **이미지 장수**. 기본 합성(CV)은 쿼터를 쓰지 않는다 */
 export type Quota = { remaining: number; limit: number };
+
+export type GalleryKind = 'PHOTO' | 'VIDEO';
+export type GalleryStatus = 'PROCESSING' | 'DONE' | 'FAILED';
+
+/** 갤러리 목록 항목 (잡 단위). GET /api/v1/gallery */
+export type GalleryItem = {
+  id: string;
+  title: string;
+  kind: GalleryKind;
+  pipeline: PipelineType;
+  status: GalleryStatus;
+  progress: number;
+  imageCount: number;
+  createdAt: string;
+  /** 썸네일이 없을 때 쓰는 목업용 배경색 (네컷이면 슬롯별) */
+  tints: string[];
+  thumbnailUrl: string | null;
+  failureReason?: string;
+  durationSec?: number;
+  requirementText?: string;
+};
+
+export type ResultImage = { url: string | null; tint: string; format: 'PNG' | 'MP4'; sizeBytes: number };
+
+/** 결과 상세. GET /api/v1/gallery/{resultId} */
+export type ResultDetail = GalleryItem & { images: ResultImage[]; frameId: number | null };
