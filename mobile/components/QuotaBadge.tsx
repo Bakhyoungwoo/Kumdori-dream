@@ -9,11 +9,11 @@ export function QuotaBadge({ remaining, limit }: Props) {
   return (
     <View
       accessible
-      accessibilityLabel={`오늘 생성 가능 횟수 ${limit}회 중 ${remaining}회 남음`}
+      accessibilityLabel={`오늘 생성형 합성 ${limit}장 중 ${remaining}장 남음`}
       style={[styles.badge, empty && styles.empty]}
     >
       <StarIcon color={empty ? colors.inkSub : colors.primaryText} />
-      <Text style={styles.text}>{empty ? '오늘 생성 한도를 모두 썼어요' : `오늘 ${remaining} / ${limit}회 남음`}</Text>
+      <Text style={styles.text}>{empty ? '오늘 생성형 한도를 모두 썼어요' : `오늘 생성형 ${remaining} / ${limit}장 남음`}</Text>
     </View>
   );
 }
