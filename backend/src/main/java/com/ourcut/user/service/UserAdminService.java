@@ -10,9 +10,9 @@ public class UserAdminService {
     private final UserRepository users;
     public UserAdminService(UserRepository users) { this.users = users; }
 
-    public List<UserDtos.UserSummary> listAll() {
+    public List<UserDtos.UserResponse> listAll() {
         return users.findAll().stream()
-            .map(user -> new UserDtos.UserSummary(user.getId(), user.getEmail(), user.getNickname(), user.getRole(), user.getStatus()))
+            .map(user -> new UserDtos.UserResponse(user.getId(), user.getEmail(), user.getNickname(), user.getRole(), user.getStatus()))
             .toList();
     }
 }

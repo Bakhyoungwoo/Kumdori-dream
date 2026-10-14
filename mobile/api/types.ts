@@ -1,8 +1,8 @@
 // docs/DEVELOPMENT_PLAN.md API 명세 기준 타입
 
-export type Artist = { id: number; name: string };
+export type Character = { id: number; name: string };
 
-export type FrameSource = 'ARTIST' | 'USER_UPLOADED';
+export type FrameSource = 'CHARACTER' | 'USER_UPLOADED';
 
 export type FrameSlot = {
   slotIndex: number;
@@ -13,8 +13,8 @@ export type FrameSlot = {
 export type FrameSummary = {
   id: number;
   title: string;
-  artistId: number | null;
-  artistName: string | null;
+  characterId: number | null;
+  characterName: string | null;
   source: FrameSource;
   slotCount: number;
   usageCount: number;

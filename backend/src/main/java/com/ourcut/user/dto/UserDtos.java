@@ -8,6 +8,6 @@ public final class UserDtos {
     private UserDtos() {
     }
 
-    public record UserSummary(UUID id, String email, String nickname, Role role, UserStatus status) {
+    public record UserResponse(UUID id, String email, String nickname, Role role, UserStatus status) {
     }
 }

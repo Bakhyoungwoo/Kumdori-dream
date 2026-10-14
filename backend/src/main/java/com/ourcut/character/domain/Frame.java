@@ -37,6 +37,10 @@ public class Frame {
     public void recordUsage() { usageCount++; }
     public UUID getId() { return id; }
     public FrameSourceType getSourceType() { return sourceType; }
+    public Character getCharacter() { return character; }
+    public String getTitle() { return title; }
+    public String getDescription() { return description; }
+    public long getUsageCount() { return usageCount; }
     public int getSlotCount() { return slotCount; }
     public List<FrameSlot> getSlots() { return Collections.unmodifiableList(slots); }
 }

@@ -2,6 +2,8 @@ package com.ourcut.auth.domain;
 
 import com.ourcut.user.domain.User;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -15,7 +17,7 @@ public class RefreshSession {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "replaced_by") private RefreshSession replacedBy;
     @Column(name = "device_name", length = 100) private String deviceName;
     @Column(name = "user_agent") private String userAgent;
-    @Column(name = "ip_address") private String ipAddress;
+    @JdbcTypeCode(SqlTypes.INET) @Column(name = "ip_address") private String ipAddress;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
     protected RefreshSession() {}
     public RefreshSession(User user, String tokenHash, Instant expiresAt) {
