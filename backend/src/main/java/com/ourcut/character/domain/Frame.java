@@ -40,6 +40,7 @@ public class Frame {
     public Character getCharacter() { return character; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
+    public String getTemplateKey() { return templateKey; }
     public long getUsageCount() { return usageCount; }
     public int getSlotCount() { return slotCount; }
     public List<FrameSlot> getSlots() { return Collections.unmodifiableList(slots); }

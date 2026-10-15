@@ -6,9 +6,11 @@ import com.ourcut.character.service.FrameQueryService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/v1/frames")
@@ -25,5 +27,10 @@ public class FrameController {
         @RequestParam(required = false) UUID characterId
     ) {
         return frames.list(source, characterId);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<FrameResponse> get(@PathVariable UUID id) {
+        return frames.find(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

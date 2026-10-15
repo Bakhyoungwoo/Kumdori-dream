@@ -18,4 +18,5 @@ public class FrameSlot {
     }
     public int getSlotIndex() { return slotIndex; }
     public String getTargetImageKey() { return targetImageKey; }
+    public String getAnalysis() { return analysis; }
 }
