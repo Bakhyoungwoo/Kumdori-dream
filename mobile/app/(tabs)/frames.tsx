@@ -14,7 +14,7 @@ type Source = 'CHARACTER' | 'USER_UPLOADED';
 
 export default function FramesScreen() {
   const [source, setSource] = useState<Source>('CHARACTER');
-  const [characterId, setCharacterId] = useState<number | null>(null);
+  const [characterId, setCharacterId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const characters = useAsync(getCharacters, []);
   const frames = useAsync(() => getFrames({ source, characterId, query }), [source, characterId, query]);

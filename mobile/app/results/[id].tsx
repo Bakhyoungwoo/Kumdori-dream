@@ -68,7 +68,7 @@ export default function ResultScreen() {
     try {
       // TODO: 원래 잡의 입력(슬롯별 이미지 key)을 서버가 재사용하는 API로 교체
       const res = await createJob({
-        frameId: result!.frameId ?? 0,
+        frameId: String(result!.frameId ?? ''),
         inputs: [],
         ...(generative ? { requirementText: result!.requirementText, imageCount: result!.imageCount } : {}),
       });

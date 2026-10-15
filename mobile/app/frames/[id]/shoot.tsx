@@ -28,7 +28,7 @@ function notify(title: string, message: string) {
 
 export default function ShootScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const frameId = Number(id);
+  const frameId = id;
   const { data: frame, loading } = useAsync(() => getFrame(frameId), [frameId]);
   const draft = useComposeDraft();
   const [selected, setSelected] = useState<number | null>(null);
@@ -87,7 +87,14 @@ export default function ShootScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.top}>
-          <FramePreview tints={frame.tints} photos={photos} activeSlot={target} showNumbers style={styles.preview} />
+          <FramePreview
+            tints={frame.tints}
+            photos={photos}
+            slotPreviews={Object.fromEntries(frame.slots.filter((slot) => slot.targetPreviewUrl).map((slot) => [slot.slotIndex, slot.targetPreviewUrl!]))}
+            activeSlot={target}
+            showNumbers
+            style={styles.preview}
+          />
 
           <View style={styles.slots} accessibilityRole="list">
             {frame.slots.map(({ slotIndex }) => {

@@ -1,19 +1,21 @@
 // docs/DEVELOPMENT_PLAN.md API 명세 기준 타입
 
-export type Character = { id: number; name: string };
+export type Character = { id: string; name: string; profileImageKey?: string | null };
 
 export type FrameSource = 'CHARACTER' | 'USER_UPLOADED';
 
 export type FrameSlot = {
   slotIndex: number;
+  targetImageKey: string;
+  analysis: string | null;
   /** 슬롯에 들어갈 합성 대상(아티스트·인물) 미리보기 */
   targetPreviewUrl: string | null;
 };
 
 export type FrameSummary = {
-  id: number;
+  id: string;
   title: string;
-  characterId: number | null;
+  characterId: string | null;
   characterName: string | null;
   source: FrameSource;
   slotCount: number;
@@ -29,7 +31,7 @@ export type FrameDetail = FrameSummary & { slots: FrameSlot[] };
 export type PipelineType = 'CV' | 'GENERATIVE';
 
 export type CreateJobRequest = {
-  frameId: number;
+  frameId: string;
   inputs: { slotIndex: number; userImageKey: string }[];
   /** 있으면 GENERATIVE, 없으면 CV */
   requirementText?: string;
@@ -66,4 +68,4 @@ export type GalleryItem = {
 export type ResultImage = { url: string | null; tint: string; format: 'PNG' | 'MP4'; sizeBytes: number };
 
 /** 결과 상세. GET /api/v1/gallery/{resultId} */
-export type ResultDetail = GalleryItem & { images: ResultImage[]; frameId: number | null };
+export type ResultDetail = GalleryItem & { images: ResultImage[]; frameId: string | number | null };
