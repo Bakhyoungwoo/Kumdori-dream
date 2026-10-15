@@ -29,7 +29,7 @@ services:
       - "9092:9092"
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ourcut
@@ -42,8 +42,9 @@ services:
 
   backend:
     build: ../backend
+    env_file:
+      - ../backend/.env.minio
     environment:
-      JWT_SECRET: local-development-secret-change-me-please-32chars
       DB_URL: jdbc:postgresql://postgres:5432/ourcut
       DB_USERNAME: ourcut
       DB_PASSWORD: ourcut
