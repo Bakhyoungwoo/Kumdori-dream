@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,8 +24,11 @@ public class UploadController {
     }
 
     @PostMapping("/presign")
-    public PresignResponse presign(@AuthenticationPrincipal UUID userId,
+    public PresignResponse presign(Authentication authentication,
                                    @Valid @RequestBody PresignRequest request) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UUID userId)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
+        }
         if (properties.getBucket().isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Object storage is not configured");
         }
