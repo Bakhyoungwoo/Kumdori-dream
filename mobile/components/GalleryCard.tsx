@@ -22,10 +22,14 @@ export function GalleryCard({ item, onPress, onLongPress, onRetry, selectable, s
   const processing = item.status === 'PROCESSING';
   const disabled = selectable && processing; // 생성 중인 항목은 선택할 수 없다
   const meta = `${formatRelative(item.createdAt)} · ${pipelineLabel(item)}`;
+  // 실패 카드는 내부의 "다시 시도"가 실제 버튼이다. 카드 전체도 button 역할을 가지면
+  // 웹에서 <button> 안에 <button>이 중첩되는 무효한 DOM이 되므로(React hydration 경고,
+  // 클릭 버블링으로 두 onPress가 동시에 불릴 위험) 이 경우만 역할을 비운다.
+  const nestedRetry = !selectable && item.status === 'FAILED' && !!onRetry;
 
   return (
     <Pressable
-      accessibilityRole={selectable ? 'checkbox' : 'button'}
+      accessibilityRole={selectable ? 'checkbox' : nestedRetry ? undefined : 'button'}
       accessibilityState={selectable ? { checked: !!selected, disabled } : undefined}
       accessibilityLabel={`${item.title}, ${meta}, ${statusText(item)}`}
       disabled={disabled}
