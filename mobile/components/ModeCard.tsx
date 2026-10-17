@@ -46,7 +46,7 @@ export function ModeCard({ mode, onPress, disabled }: Props) {
 function PhotoArt() {
   return (
     <Svg width={118} height={98} viewBox="0 0 120 100">
-      <G rotation={-8} origin="60, 50">
+      <G transform="rotate(-8, 60, 50)">
         <Rect x={34} y={4} width={40} height={94} rx={6} fill={colors.primary} stroke={colors.ink} strokeWidth={3} />
         <Rect x={40} y={11} width={28} height={18} rx={3} fill={colors.cream} />
         <Rect x={40} y={33} width={28} height={18} rx={3} fill="#B9C3F7" />
@@ -62,7 +62,7 @@ function PhotoArt() {
 function VideoArt() {
   return (
     <Svg width={118} height={98} viewBox="0 0 120 100">
-      <G rotation={6} origin="55, 52">
+      <G transform="rotate(6, 55, 52)">
         <Rect x={18} y={22} width={74} height={60} rx={12} fill={colors.pop} stroke={colors.ink} strokeWidth={3} />
       </G>
       <Path d="M48 40 L72 54 L48 68 Z" fill="#FFFDF8" stroke={colors.ink} strokeWidth={3} strokeLinejoin="round" />

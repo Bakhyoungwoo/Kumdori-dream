@@ -19,7 +19,7 @@ const COUNTS = [1, 2, 3, 4] as const;
 
 export default function SettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const frameId = Number(id);
+  const frameId = id;
   const { data: frame } = useAsync(() => getFrame(frameId), [frameId]);
   const { data: quota } = useAsync(getQuota, []);
   const draft = useComposeDraft();
@@ -206,7 +206,7 @@ export default function SettingsScreen() {
   );
 }
 
-function EditLink({ frameId }: { frameId: number }) {
+function EditLink({ frameId }: { frameId: string }) {
   return (
     <Pressable accessibilityRole="link" hitSlop={10} onPress={() => router.navigate(`/frames/${frameId}/shoot`)}>
       <Text style={styles.edit}>수정</Text>

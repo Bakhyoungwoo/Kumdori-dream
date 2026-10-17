@@ -21,4 +21,7 @@ public final class AuthDtos {
 
     public record TokenResponse(String accessToken, String refreshToken, long accessTokenExpiresIn) {
     }
+
+    public record DeviceInfo(String deviceName, String userAgent, String ipAddress) {
+    }
 }

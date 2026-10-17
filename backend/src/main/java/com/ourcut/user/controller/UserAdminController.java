@@ -16,7 +16,7 @@ public class UserAdminController {
     public UserAdminController(UserAdminService users) { this.users = users; }
 
     @GetMapping
-    public List<UserDtos.UserSummary> list() {
+    public List<UserDtos.UserResponse> list() {
         return users.listAll();
     }
 }

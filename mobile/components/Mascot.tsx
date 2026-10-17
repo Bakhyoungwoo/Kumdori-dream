@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { colors } from '@/theme/tokens';
 
@@ -16,19 +17,22 @@ const INK = colors.ink;
 const BODY = '#FFFDF8';
 const CHEEK = '#FFB4A2';
 
+// react-native-svg의 Svg는 웹에서 RN 전용 accessibility prop을 그대로 DOM에 꽂아 넣어 경고가 난다.
+// 플랫폼별로 실제 지원되는 이름만 넘긴다.
+const svgA11yProps = (label?: string) =>
+  Platform.OS === 'web'
+    ? label
+      ? { role: 'img' as const, 'aria-label': label }
+      : { 'aria-hidden': true as const }
+    : label
+      ? { accessible: true, accessibilityLabel: label }
+      : { accessible: false, accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const };
+
 /** OURCUT 마스코트 (가칭 꿈컷이) — viewBox 240×240 */
 export function Mascot({ pose = 'hello', size = 200, decor = false, label }: Props) {
   const lensY = pose === 'cheer' ? 172 : 170;
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 240 240"
-      accessible={!!label}
-      accessibilityLabel={label}
-      accessibilityElementsHidden={!label}
-      importantForAccessibility={label ? 'yes' : 'no-hide-descendants'}
-    >
+    <Svg width={size} height={size} viewBox="0 0 240 240" {...svgA11yProps(label)}>
       {decor && <Decor pose={pose} />}
 
       <Ellipse cx={120} cy={226} rx={60} ry={7} fill={INK} opacity={0.08} />
@@ -115,7 +119,7 @@ function Arms({ pose }: { pose: MascotPose }) {
       return (
         <>
           {restLeft}
-          <G rotation={10} origin="200, 140">
+          <G transform="rotate(10, 200, 140)">
             <Rect x={182} y={92} width={38} height={92} rx={6} fill={colors.primary} stroke={INK} strokeWidth={3.5} />
             <Rect x={188} y={99} width={26} height={22} rx={3} fill={colors.cream} />
             <Rect x={188} y={126} width={26} height={22} rx={3} fill={colors.cream} />

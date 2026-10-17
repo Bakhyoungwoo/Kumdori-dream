@@ -37,6 +37,7 @@ class AuthServiceTest {
     private AuthService auth;
     private User user;
     private String currentTest;
+    private static final AuthDtos.DeviceInfo NO_DEVICE = new AuthDtos.DeviceInfo(null, null, null);
 
     @BeforeEach
     void setUp() {
@@ -62,7 +63,7 @@ class AuthServiceTest {
             .thenReturn(Optional.empty());
 
         AuthDtos.TokenResponse response = auth.signup(
-            new AuthDtos.SignupRequest(" USER@example.com ", "password123", "Kumdori")
+            new AuthDtos.SignupRequest(" USER@example.com ", "password123", "Kumdori"), NO_DEVICE
         );
 
         assertThat(response.accessToken()).isEqualTo("access-token");
@@ -82,7 +83,7 @@ class AuthServiceTest {
             .thenReturn(Optional.of(AuthIdentity.local(user, "user@example.com", "encoded-password")));
 
         assertThatThrownBy(() -> auth.signup(
-            new AuthDtos.SignupRequest("user@example.com", "password123", "Kumdori")
+            new AuthDtos.SignupRequest("user@example.com", "password123", "Kumdori"), NO_DEVICE
         )).isInstanceOf(AuthException.class);
 
         verify(users, never()).save(any(User.class));
@@ -100,7 +101,7 @@ class AuthServiceTest {
         when(passwords.matches("password123", "encoded-password")).thenReturn(true);
 
         AuthDtos.TokenResponse response = auth.login(
-            new AuthDtos.LoginRequest("user@example.com", "password123")
+            new AuthDtos.LoginRequest("user@example.com", "password123"), NO_DEVICE
         );
 
         assertThat(response.accessToken()).isEqualTo("access-token");
@@ -119,7 +120,7 @@ class AuthServiceTest {
         when(passwords.matches("wrong-password", "encoded-password")).thenReturn(false);
 
         assertThatThrownBy(() -> auth.login(
-            new AuthDtos.LoginRequest("user@example.com", "wrong-password")
+            new AuthDtos.LoginRequest("user@example.com", "wrong-password"), NO_DEVICE
         )).isInstanceOf(AuthException.class);
 
         verify(sessions, never()).save(any(RefreshSession.class));
@@ -134,7 +135,7 @@ class AuthServiceTest {
         RefreshSession session = new RefreshSession(user, "hash", Instant.now().plusSeconds(60));
         when(sessions.findByTokenHash(anyString())).thenReturn(Optional.of(session));
 
-        AuthDtos.TokenResponse response = auth.refresh(new AuthDtos.RefreshRequest("refresh-token"));
+        AuthDtos.TokenResponse response = auth.refresh(new AuthDtos.RefreshRequest("refresh-token"), NO_DEVICE);
 
         assertThat(response.accessToken()).isEqualTo("access-token");
         System.out.println("[AUTH TEST][RESULT] 기존 refreshSession 폐기 및 신규 토큰 발급 확인");
