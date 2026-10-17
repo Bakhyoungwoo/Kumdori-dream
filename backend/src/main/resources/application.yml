@@ -38,6 +38,7 @@ management:
         enabled: true
 
 app:
+  internal-api-key: ${APP_INTERNAL_API_KEY:}
   outbox:
     topic: ${OUTBOX_KAFKA_TOPIC:compose.request}
     batch-size: ${OUTBOX_BATCH_SIZE:50}

@@ -39,6 +39,16 @@ public class ComposeJob {
     public void updateProgress(int value) { if (value < 0 || value > 100) throw new IllegalArgumentException("progress must be between 0 and 100"); progress = value; updatedAt = Instant.now(); }
     public void complete() { changeStatus(ComposeJobStatus.DONE); progress = 100; finishedAt = Instant.now(); }
     public void fail(String errorCode) { this.errorCode = errorCode; changeStatus(ComposeJobStatus.FAILED); finishedAt = Instant.now(); }
+    public void cancel() {
+        if (status == ComposeJobStatus.DONE || status == ComposeJobStatus.FAILED || status == ComposeJobStatus.CANCELED) {
+            throw new IllegalStateException("Job cannot be canceled in status " + status);
+        }
+        changeStatus(ComposeJobStatus.CANCELED);
+        finishedAt = Instant.now();
+    }
+    public void addResult(int variantIndex, String resultKey, String thumbnailKey, Integer width, Integer height) {
+        results.add(new ComposeResult(this, variantIndex, resultKey, thumbnailKey, width, height));
+    }
     private void changeStatus(ComposeJobStatus value) { status = value; updatedAt = Instant.now(); }
     public UUID getId() { return id; }
     public User getUser() { return user; }
