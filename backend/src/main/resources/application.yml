@@ -17,7 +17,7 @@ spring:
     locations: classpath:db/migration
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
   data:
     redis:
@@ -38,6 +38,10 @@ management:
         enabled: true
 
 app:
+  outbox:
+    topic: ${OUTBOX_KAFKA_TOPIC:compose.request}
+    batch-size: ${OUTBOX_BATCH_SIZE:50}
+    poll-ms: ${OUTBOX_POLL_MS:1000}
   storage:
     s3:
       bucket: ${AWS_S3_BUCKET:}

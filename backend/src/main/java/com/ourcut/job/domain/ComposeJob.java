@@ -44,7 +44,14 @@ public class ComposeJob {
     public User getUser() { return user; }
     public Frame getFrame() { return frame; }
     public ComposeJobStatus getStatus() { return status; }
+    public PipelineType getPipelineType() { return pipelineType; }
+    public String getRequirementText() { return requirementText; }
+    public int getImageCount() { return imageCount; }
     public int getProgress() { return progress; }
     public String getIdempotencyKey() { return idempotencyKey; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+    public String getErrorCode() { return errorCode; }
+    public List<ComposeJobInput> getInputs() { return Collections.unmodifiableList(inputs); }
     public List<ComposeResult> getResults() { return Collections.unmodifiableList(results); }
 }

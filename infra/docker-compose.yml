@@ -28,26 +28,14 @@ services:
     ports:
       - "9092:9092"
 
-  minio:
-    image: quay.io/minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ourcut
-      MINIO_ROOT_PASSWORD: ourcut1234
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio-data:/data
-
   backend:
     build: ../backend
-    env_file:
-      - ../backend/.env.minio
     environment:
+      JWT_SECRET: local-development-secret-change-me-please-32chars
       DB_URL: jdbc:postgresql://postgres:5432/ourcut
       DB_USERNAME: ourcut
       DB_PASSWORD: ourcut
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - postgres
       - redis
@@ -59,10 +47,8 @@ services:
     build: ../ai-engine
     depends_on:
       - kafka
-      - minio
     ports:
       - "8001:8001"
 
 volumes:
   postgres-data:
-  minio-data:
