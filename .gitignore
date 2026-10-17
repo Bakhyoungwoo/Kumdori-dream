@@ -6,6 +6,7 @@
 # Backend (Gradle)
 backend/build/
 backend/.gradle/
+backend/.gradle-user/
 backend/out/
 
 # AI Engine (Python)
