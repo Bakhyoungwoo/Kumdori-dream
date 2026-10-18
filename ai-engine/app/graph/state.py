@@ -10,6 +10,7 @@ class ComposeState(TypedDict, total=False):
     inputs: list[dict]
     input_keys: list[str]
     reference_image_keys: list[str]
+    frame_key: str
     frame_id: str
     frame_manifest: dict
     requirement_text: str | None
