@@ -6,6 +6,8 @@ class ComposeState(TypedDict, total=False):
     user_id: str
     media_type: Literal["IMAGE", "VIDEO"]
     pipeline_type: Literal["CV", "GENERATIVE"]
+    # Kafka payload uses inputs[].userImageKey. input_keys is the normalized form.
+    inputs: list[dict]
     input_keys: list[str]
     reference_image_keys: list[str]
     frame_id: str
