@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+httpx
+aiokafka
+langgraph
+pydantic-settings
+rembg
+mediapipe
+opencv-python-headless
+pillow
