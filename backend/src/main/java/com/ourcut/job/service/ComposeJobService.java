@@ -12,6 +12,7 @@ import com.ourcut.job.outbox.OutboxEventRepository;
 import com.ourcut.job.repository.ComposeJobRepository;
 import com.ourcut.user.domain.User;
 import com.ourcut.user.repository.UserRepository;
+import com.ourcut.global.storage.ObjectUrlResolver;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
+import com.ourcut.job.dto.GalleryDtos;
 
 @Service
 public class ComposeJobService {
@@ -28,14 +30,17 @@ public class ComposeJobService {
     private final UserRepository users;
     private final FrameRepository frames;
     private final ObjectMapper objectMapper;
+    private final ObjectUrlResolver urls;
 
     public ComposeJobService(ComposeJobRepository jobs, OutboxEventRepository outbox,
-                             UserRepository users, FrameRepository frames, ObjectMapper objectMapper) {
+                             UserRepository users, FrameRepository frames, ObjectMapper objectMapper,
+                             ObjectUrlResolver urls) {
         this.jobs = jobs;
         this.outbox = outbox;
         this.users = users;
         this.frames = frames;
         this.objectMapper = objectMapper;
+        this.urls = urls;
     }
 
     @Transactional
@@ -75,6 +80,17 @@ public class ComposeJobService {
     @Transactional(readOnly = true)
     public List<JobDtos.JobResponse> list(UUID userId) {
         return jobs.findByUserIdOrderByCreatedAtDesc(userId).stream().map(JobDtos.JobResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GalleryDtos.Item> gallery(UUID userId) {
+        return jobs.findByUserIdAndStatusOrderByFinishedAtDesc(userId, com.ourcut.job.domain.ComposeJobStatus.DONE)
+            .stream()
+            .flatMap(job -> job.getResults().stream().map(result -> new GalleryDtos.Item(
+                job.getId(), job.getFrame().getId(), result.getResultKey(), result.getThumbnailKey(),
+                urls.resolve(result.getResultKey()), urls.resolve(result.getThumbnailKey()),
+                job.getFinishedAt() == null ? null : job.getFinishedAt().toString())))
+            .toList();
     }
 
     @Transactional

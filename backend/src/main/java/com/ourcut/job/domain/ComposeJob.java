@@ -61,6 +61,7 @@ public class ComposeJob {
     public String getIdempotencyKey() { return idempotencyKey; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public Instant getFinishedAt() { return finishedAt; }
     public String getErrorCode() { return errorCode; }
     public List<ComposeJobInput> getInputs() { return Collections.unmodifiableList(inputs); }
     public List<ComposeResult> getResults() { return Collections.unmodifiableList(results); }
