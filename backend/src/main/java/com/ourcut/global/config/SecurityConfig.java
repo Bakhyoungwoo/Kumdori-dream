@@ -39,7 +39,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(handling -> handling.authenticationEntryPoint(entryPoint).accessDeniedHandler(accessDeniedHandler))
-            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**", "/actuator/health",
+            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**", "/api/v1/internal/**", "/actuator/health", "/error",
                     "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll().anyRequest().authenticated())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class).build();
     }

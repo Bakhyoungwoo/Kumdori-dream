@@ -12,13 +12,16 @@ import com.ourcut.job.outbox.OutboxEventRepository;
 import com.ourcut.job.repository.ComposeJobRepository;
 import com.ourcut.user.domain.User;
 import com.ourcut.user.repository.UserRepository;
+import com.ourcut.global.storage.ObjectUrlResolver;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
+import com.ourcut.job.dto.GalleryDtos;
 
 @Service
 public class ComposeJobService {
@@ -27,14 +30,17 @@ public class ComposeJobService {
     private final UserRepository users;
     private final FrameRepository frames;
     private final ObjectMapper objectMapper;
+    private final ObjectUrlResolver urls;
 
     public ComposeJobService(ComposeJobRepository jobs, OutboxEventRepository outbox,
-                             UserRepository users, FrameRepository frames, ObjectMapper objectMapper) {
+                             UserRepository users, FrameRepository frames, ObjectMapper objectMapper,
+                             ObjectUrlResolver urls) {
         this.jobs = jobs;
         this.outbox = outbox;
         this.users = users;
         this.frames = frames;
         this.objectMapper = objectMapper;
+        this.urls = urls;
     }
 
     @Transactional
@@ -51,7 +57,7 @@ public class ComposeJobService {
         Frame frame = frames.findById(request.frameId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found"));
 
-        validateRequest(request, frame);
+        validateRequest(userId, request, frame);
 
         String requirementText = request.normalizedRequirementText();
         ComposeJob job = jobs.save(new ComposeJob(
@@ -71,7 +77,67 @@ public class ComposeJobService {
         return JobDtos.JobResponse.from(job);
     }
 
-    private void validateRequest(JobDtos.CreateJobRequest request, Frame frame) {
+    @Transactional(readOnly = true)
+    public List<JobDtos.JobResponse> list(UUID userId) {
+        return jobs.findByUserIdOrderByCreatedAtDesc(userId).stream().map(JobDtos.JobResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GalleryDtos.Item> gallery(UUID userId) {
+        return jobs.findByUserIdAndStatusOrderByFinishedAtDesc(userId, com.ourcut.job.domain.ComposeJobStatus.DONE)
+            .stream()
+            .flatMap(job -> job.getResults().stream().map(result -> new GalleryDtos.Item(
+                job.getId(), job.getFrame().getId(), result.getResultKey(), result.getThumbnailKey(),
+                urls.resolve(result.getResultKey()), urls.resolve(result.getThumbnailKey()),
+                job.getFinishedAt() == null ? null : job.getFinishedAt().toString())))
+            .toList();
+    }
+
+    @Transactional
+    public void cancel(UUID userId, UUID jobId) {
+        ComposeJob job = ownedJob(userId, jobId);
+        job.cancel();
+    }
+
+    @Transactional
+    public JobDtos.JobResponse callback(UUID jobId, JobDtos.JobCallbackRequest request) {
+        ComposeJob job = jobs.findById(jobId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
+        if (job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.DONE
+            || job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.FAILED
+            || job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.CANCELED) {
+            return JobDtos.JobResponse.from(job);
+        }
+        if (request.status() == com.ourcut.job.domain.ComposeJobStatus.DONE) {
+            if (request.results() == null || request.results().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Completed jobs require results");
+            }
+            request.results().forEach(result -> job.addResult(result.variantIndex(), result.resultKey().trim(),
+                result.thumbnailKey() == null ? null : result.thumbnailKey().trim(), result.width(), result.height()));
+            job.complete();
+        } else if (request.status() == com.ourcut.job.domain.ComposeJobStatus.FAILED) {
+            job.fail(request.errorCode() == null ? "COMPOSE_FAILED" : request.errorCode().trim());
+        } else if (request.status() == com.ourcut.job.domain.ComposeJobStatus.PROCESSING) {
+            job.start();
+            if (request.progress() != null) job.updateProgress(request.progress());
+        } else if (request.status() == com.ourcut.job.domain.ComposeJobStatus.QUEUED) {
+            job.queue();
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported callback status");
+        }
+        return JobDtos.JobResponse.from(job);
+    }
+
+    private ComposeJob ownedJob(UUID userId, UUID jobId) {
+        return jobs.findById(jobId)
+            .filter(value -> value.getUser().getId().equals(userId))
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
+    }
+
+    private void validateRequest(UUID userId, JobDtos.CreateJobRequest request, Frame frame) {
+        if (frame.getOwner() != null && !frame.getOwner().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found");
+        }
         String requirement = request.normalizedRequirementText();
         if (request.pipelineType() == PipelineType.CV && (requirement != null || request.resolvedImageCount() != 1)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CV jobs require no requirement and one image");
@@ -86,6 +152,13 @@ public class ComposeJobService {
         if (new HashSet<>(slots).size() != slots.size()
             || slots.stream().anyMatch(index -> index < 0 || index >= frame.getSlotCount())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid frame slot inputs");
+        }
+        String expectedPrefix = "users/" + userId + "/inputs/";
+        if (request.inputs().stream()
+            .map(JobDtos.Input::userImageKey)
+            .map(String::trim)
+            .anyMatch(key -> !key.startsWith(expectedPrefix) || key.length() <= expectedPrefix.length())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input image does not belong to the user");
         }
     }
 

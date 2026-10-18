@@ -42,6 +42,7 @@ public final class JobDtos {
         int imageCount,
         int progress,
         String errorCode,
+        List<ResultResponse> results,
         Instant createdAt,
         Instant updatedAt
     ) {
@@ -49,7 +50,29 @@ public final class JobDtos {
             return new JobResponse(
                 job.getId(), job.getFrame().getId(), job.getStatus(), job.getPipelineType(),
                 job.getRequirementText(), job.getImageCount(), job.getProgress(), job.getErrorCode(),
+                job.getResults().stream().map(ResultResponse::from).toList(),
                 job.getCreatedAt(), job.getUpdatedAt());
         }
     }
+
+    public record ResultResponse(String resultKey, String thumbnailKey, Integer width, Integer height) {
+        static ResultResponse from(com.ourcut.job.domain.ComposeResult result) {
+            return new ResultResponse(result.getResultKey(), result.getThumbnailKey(), result.getWidth(), result.getHeight());
+        }
+    }
+
+    public record ResultItem(
+        @Min(0) @Max(3) int variantIndex,
+        @NotBlank @Size(max = 500) String resultKey,
+        @Size(max = 500) String thumbnailKey,
+        @Min(1) Integer width,
+        @Min(1) Integer height
+    ) {}
+
+    public record JobCallbackRequest(
+        @NotNull ComposeJobStatus status,
+        @Min(0) @Max(100) Integer progress,
+        @Size(max = 100) String errorCode,
+        @Size(max = 4) List<@Valid ResultItem> results
+    ) {}
 }

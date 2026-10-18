@@ -38,6 +38,7 @@ public class Frame {
     public UUID getId() { return id; }
     public FrameSourceType getSourceType() { return sourceType; }
     public Character getCharacter() { return character; }
+    public User getOwner() { return owner; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
     public String getTemplateKey() { return templateKey; }

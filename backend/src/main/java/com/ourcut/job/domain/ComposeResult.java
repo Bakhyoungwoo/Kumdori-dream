@@ -22,4 +22,6 @@ public class ComposeResult {
     }
     public String getResultKey() { return resultKey; }
     public String getThumbnailKey() { return thumbnailKey; }
+    public Integer getWidth() { return width; }
+    public Integer getHeight() { return height; }
 }
