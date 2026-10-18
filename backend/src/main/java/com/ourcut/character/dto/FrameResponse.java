@@ -11,6 +11,8 @@ public record FrameResponse(
     String description,
     UUID characterId,
     String characterName,
+    String characterProfileImageKey,
+    String characterProfileImageUrl,
     String source,
     String templateKey,
     String templatePreviewUrl,
@@ -20,7 +22,7 @@ public record FrameResponse(
 ) {
     public FrameResponse(UUID id, String title, String description, UUID characterId, String characterName,
                          String source, int slotCount, long usageCount) {
-        this(id, title, description, characterId, characterName, source, null, null, slotCount, usageCount, List.of());
+        this(id, title, description, characterId, characterName, null, null, source, null, null, slotCount, usageCount, List.of());
     }
 
     public static FrameResponse from(Frame frame, ObjectUrlResolver urls) {
@@ -31,6 +33,8 @@ public record FrameResponse(
             frame.getDescription(),
             character == null ? null : character.getId(),
             character == null ? null : character.getName(),
+            character == null ? null : character.getProfileImageKey(),
+            character == null ? null : urls.resolve(character.getProfileImageKey()),
             frame.getSourceType().name(),
             frame.getTemplateKey(),
             urls.resolve(frame.getTemplateKey()),

@@ -16,8 +16,8 @@ CREATE TABLE frames (
     slot_count INTEGER NOT NULL DEFAULT 4,
     usage_count BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT ck_frames_source_type CHECK (source_type IN ('CHARACTER', 'USER_UPLOADED')),
-    CONSTRAINT ck_frames_owner CHECK ((source_type = 'CHARACTER' AND character_id IS NOT NULL AND owner_user_id IS NULL) OR (source_type = 'USER_UPLOADED' AND character_id IS NULL AND owner_user_id IS NOT NULL)),
+    CONSTRAINT ck_frames_source_type CHECK (source_type = 'CHARACTER'),
+    CONSTRAINT ck_frames_owner CHECK (character_id IS NOT NULL AND owner_user_id IS NULL),
     CONSTRAINT ck_frames_slot_count CHECK (slot_count BETWEEN 1 AND 4)
 );
 
@@ -34,7 +34,7 @@ CREATE TABLE frame_slots (
 CREATE TABLE compose_jobs (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id),
-    frame_id UUID NOT NULL REFERENCES frames(id),
+    frame_id UUID REFERENCES frames(id),
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     pipeline_type VARCHAR(20) NOT NULL DEFAULT 'CV',
     requirement_text VARCHAR(200),

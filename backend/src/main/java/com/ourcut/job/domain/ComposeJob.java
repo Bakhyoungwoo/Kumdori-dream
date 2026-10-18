@@ -11,7 +11,7 @@ import java.util.*;
 public class ComposeJob {
     @Id private UUID id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "user_id") private User user;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "frame_id") private Frame frame;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "frame_id") private Frame frame;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private ComposeJobStatus status = ComposeJobStatus.PENDING;
     @Enumerated(EnumType.STRING) @Column(name = "pipeline_type", nullable = false, length = 20) private PipelineType pipelineType = PipelineType.CV;
     @Column(name = "requirement_text", length = 200) private String requirementText;

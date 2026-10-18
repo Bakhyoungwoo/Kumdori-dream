@@ -1,0 +1,1 @@
+ALTER TABLE compose_jobs ALTER COLUMN frame_id DROP NOT NULL;

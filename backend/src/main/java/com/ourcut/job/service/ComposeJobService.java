@@ -54,7 +54,7 @@ public class ComposeJobService {
 
         User user = users.findById(userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-        Frame frame = frames.findById(request.frameId())
+        Frame frame = request.frameId() == null ? null : frames.findById(request.frameId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found"));
 
         validateRequest(userId, request, frame);
@@ -87,7 +87,7 @@ public class ComposeJobService {
         return jobs.findByUserIdAndStatusOrderByFinishedAtDesc(userId, com.ourcut.job.domain.ComposeJobStatus.DONE)
             .stream()
             .flatMap(job -> job.getResults().stream().map(result -> new GalleryDtos.Item(
-                job.getId(), job.getFrame().getId(), result.getResultKey(), result.getThumbnailKey(),
+                job.getId(), job.getFrame() == null ? null : job.getFrame().getId(), result.getResultKey(), result.getThumbnailKey(),
                 urls.resolve(result.getResultKey()), urls.resolve(result.getThumbnailKey()),
                 job.getFinishedAt() == null ? null : job.getFinishedAt().toString())))
             .toList();
@@ -135,7 +135,7 @@ public class ComposeJobService {
     }
 
     private void validateRequest(UUID userId, JobDtos.CreateJobRequest request, Frame frame) {
-        if (frame.getOwner() != null && !frame.getOwner().getId().equals(userId)) {
+        if (frame != null && (frame.getOwner() != null || frame.getSourceType() != com.ourcut.character.domain.FrameSourceType.CHARACTER)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found");
         }
         String requirement = request.normalizedRequirementText();
@@ -145,33 +145,50 @@ public class ComposeJobService {
         if (request.pipelineType() == PipelineType.GENERATIVE && requirement == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Generative jobs require a requirement");
         }
-        if (request.inputs().size() != frame.getSlotCount()) {
+        if (request.pipelineType() == PipelineType.GENERATIVE && request.inputs().size() > 2) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Generative jobs accept at most two reference images");
+        }
+        if (frame != null && request.pipelineType() == PipelineType.GENERATIVE && request.inputs().size() != 2) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Framed generation requires a user image and a character image");
+        }
+        if (frame == null && request.pipelineType() == PipelineType.CV && request.inputs().size() != 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Frame-free CV jobs require one input");
+        }
+        if (frame != null && request.pipelineType() == PipelineType.CV
+            && request.inputs().size() != frame.getSlotCount()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All frame slots must have an input");
         }
         var slots = request.inputs().stream().map(JobDtos.Input::slotIndex).toList();
         if (new HashSet<>(slots).size() != slots.size()
-            || slots.stream().anyMatch(index -> index < 0 || index >= frame.getSlotCount())) {
+            || slots.stream().anyMatch(index -> index < 0 || (frame != null && index >= frame.getSlotCount()))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid frame slot inputs");
         }
         String expectedPrefix = "users/" + userId + "/inputs/";
-        if (request.inputs().stream()
-            .map(JobDtos.Input::userImageKey)
-            .map(String::trim)
-            .anyMatch(key -> !key.startsWith(expectedPrefix) || key.length() <= expectedPrefix.length())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input image does not belong to the user");
+        String characterImageKey = frame == null || frame.getCharacter() == null
+            ? null : frame.getCharacter().getProfileImageKey();
+        var referenceKeys = request.inputs().stream().map(JobDtos.Input::userImageKey).map(String::trim).toList();
+        if (referenceKeys.stream().anyMatch(key -> !key.startsWith(expectedPrefix)
+            && !(request.pipelineType() == PipelineType.GENERATIVE && key.equals(characterImageKey)))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reference image is not available to the user");
+        }
+        if (frame != null && request.pipelineType() == PipelineType.GENERATIVE
+            && (referenceKeys.stream().noneMatch(key -> key.startsWith(expectedPrefix))
+                || characterImageKey == null || !referenceKeys.contains(characterImageKey))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Framed generation requires a user image and a character image");
         }
     }
 
     private String payload(ComposeJob job, JobDtos.CreateJobRequest request) {
         try {
             return objectMapper.writeValueAsString(new ComposeRequestPayload(
-                job.getId(), job.getUser().getId(), job.getFrame().getId(), job.getPipelineType(),
+                job.getId(), job.getUser().getId(), job.getFrame() == null ? null : job.getFrame().getId(),
+                job.getFrame() == null ? null : job.getFrame().getSlotCount(), job.getPipelineType(),
                 job.getRequirementText(), job.getImageCount(), request.inputs()));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to serialize compose request", exception);
         }
     }
 
-    private record ComposeRequestPayload(UUID jobId, UUID userId, UUID frameId, PipelineType pipelineType,
+    private record ComposeRequestPayload(UUID jobId, UUID userId, UUID frameId, Integer frameSlotCount, PipelineType pipelineType,
                                          String requirementText, int imageCount, Object inputs) {}
 }

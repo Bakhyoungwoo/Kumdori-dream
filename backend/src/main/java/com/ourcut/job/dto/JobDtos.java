@@ -14,11 +14,11 @@ public final class JobDtos {
     private JobDtos() {}
 
     public record CreateJobRequest(
-        @NotNull UUID frameId,
+        UUID frameId,
         @NotNull PipelineType pipelineType,
         @Size(max = 200) String requirementText,
         @Min(1) @Max(4) Integer imageCount,
-        @NotEmpty @Size(max = 4) List<@Valid Input> inputs
+        @NotNull @Size(max = 4) List<@Valid Input> inputs
     ) {
         public int resolvedImageCount() {
             return imageCount == null ? 1 : imageCount;
@@ -48,7 +48,7 @@ public final class JobDtos {
     ) {
         public static JobResponse from(ComposeJob job) {
             return new JobResponse(
-                job.getId(), job.getFrame().getId(), job.getStatus(), job.getPipelineType(),
+                job.getId(), job.getFrame() == null ? null : job.getFrame().getId(), job.getStatus(), job.getPipelineType(),
                 job.getRequirementText(), job.getImageCount(), job.getProgress(), job.getErrorCode(),
                 job.getResults().stream().map(ResultResponse::from).toList(),
                 job.getCreatedAt(), job.getUpdatedAt());

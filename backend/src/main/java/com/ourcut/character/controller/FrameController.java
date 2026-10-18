@@ -1,6 +1,5 @@
 package com.ourcut.character.controller;
 
-import com.ourcut.character.domain.FrameSourceType;
 import com.ourcut.character.dto.FrameResponse;
 import com.ourcut.character.service.FrameQueryService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,10 +22,9 @@ public class FrameController {
 
     @GetMapping
     public List<FrameResponse> list(
-        @RequestParam(defaultValue = "CHARACTER") FrameSourceType source,
         @RequestParam(required = false) UUID characterId
     ) {
-        return frames.list(source, characterId);
+        return frames.list(com.ourcut.character.domain.FrameSourceType.CHARACTER, characterId);
     }
 
     @GetMapping("/{id}")
