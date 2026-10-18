@@ -7,4 +7,5 @@ import java.util.UUID;
 public interface FrameRepository extends JpaRepository<Frame, UUID> {
     List<Frame> findBySourceTypeOrderByUsageCountDesc(FrameSourceType sourceType);
     List<Frame> findBySourceTypeAndCharacter_IdOrderByUsageCountDesc(FrameSourceType sourceType, UUID characterId);
+    List<Frame> findByOwner_IdOrderByCreatedAtDesc(UUID ownerId);
 }
