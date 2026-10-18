@@ -52,7 +52,7 @@ public class ComposeJobService {
         Frame frame = frames.findById(request.frameId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found"));
 
-        validateRequest(request, frame);
+        validateRequest(userId, request, frame);
 
         String requirementText = request.normalizedRequirementText();
         ComposeJob job = jobs.save(new ComposeJob(
@@ -118,7 +118,10 @@ public class ComposeJobService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
     }
 
-    private void validateRequest(JobDtos.CreateJobRequest request, Frame frame) {
+    private void validateRequest(UUID userId, JobDtos.CreateJobRequest request, Frame frame) {
+        if (frame.getOwner() != null && !frame.getOwner().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found");
+        }
         String requirement = request.normalizedRequirementText();
         if (request.pipelineType() == PipelineType.CV && (requirement != null || request.resolvedImageCount() != 1)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CV jobs require no requirement and one image");
@@ -133,6 +136,13 @@ public class ComposeJobService {
         if (new HashSet<>(slots).size() != slots.size()
             || slots.stream().anyMatch(index -> index < 0 || index >= frame.getSlotCount())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid frame slot inputs");
+        }
+        String expectedPrefix = "users/" + userId + "/inputs/";
+        if (request.inputs().stream()
+            .map(JobDtos.Input::userImageKey)
+            .map(String::trim)
+            .anyMatch(key -> !key.startsWith(expectedPrefix) || key.length() <= expectedPrefix.length())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Input image does not belong to the user");
         }
     }
 
