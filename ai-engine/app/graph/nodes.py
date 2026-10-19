@@ -27,6 +27,8 @@ async def validate_input(state: ComposeState) -> ComposeState:
         ]
     if not state.get("frame_key") and state.get("frame_manifest", {}).get("key"):
         state["frame_key"] = state["frame_manifest"]["key"]
+    if not state.get("alignment") and state.get("frame_manifest", {}).get("alignment"):
+        state["alignment"] = state["frame_manifest"]["alignment"]
     if not state.get("input_keys"):
         raise ValueError("at least one input image is required")
 
@@ -127,7 +129,7 @@ async def cv_pipeline(state: ComposeState) -> ComposeState:
 
         result = frame
         for subject in subjects:
-            result = compose_subject(subject, result)
+            result = compose_subject(subject, result, state.get("alignment"))
 
         output = BytesIO()
         result.save(output, format="PNG")

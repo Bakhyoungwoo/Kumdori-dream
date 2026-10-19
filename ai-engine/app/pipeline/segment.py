@@ -1,17 +1,55 @@
-from PIL import Image
 from collections import deque
+from functools import lru_cache
+
+from PIL import Image
+
+from app.config import settings
+
+
+@lru_cache(maxsize=1)
+def _rembg_session():
+    """Create the segmentation model only when the rembg backend is enabled."""
+    from rembg import new_session
+
+    return new_session(settings.segmentation_model)
+
+
+def _segment_with_rembg(image: Image.Image) -> Image.Image:
+    from rembg import remove
+
+    result = remove(
+        image.convert("RGBA"),
+        session=_rembg_session(),
+        alpha_matting=settings.segmentation_alpha_matting,
+        alpha_matting_foreground_threshold=settings.segmentation_foreground_threshold,
+        alpha_matting_background_threshold=settings.segmentation_background_threshold,
+        alpha_matting_erode_size=settings.segmentation_erode_size,
+    )
+    if not isinstance(result, Image.Image):
+        raise TypeError("rembg returned an unsupported image type")
+    return result.convert("RGBA").getchannel("A")
 
 
 def segment_person(image: Image.Image) -> Image.Image:
     """Return a foreground mask.
 
-    The first adapter preserves an existing alpha channel. For opaque inputs,
-    it uses a full foreground mask until a rembg/SAM2 adapter is configured.
+    Existing alpha is preserved. Opaque images use rembg when configured;
+    the deterministic white-border adapter remains available as a safe
+    fallback for local development and model failures.
     """
     if image.mode == "RGBA":
         return image.getchannel("A")
 
-    # Basic fallback for ID/photos shot on a white studio background. Only
+    if settings.segmentation_backend in {"rembg", "auto"}:
+        try:
+            return _segment_with_rembg(image)
+        except Exception:
+            # A model download or inference failure must not break the whole
+            # compose job. The fallback below is intentionally deterministic.
+            if settings.segmentation_backend == "rembg":
+                raise
+
+    # Fallback for ID/photos shot on a white studio background. Only
     # white pixels connected to the image border are removed, so white clothes
     # inside the subject are not discarded as background.
     rgb = image.convert("RGB")

@@ -13,6 +13,7 @@ class ComposeState(TypedDict, total=False):
     frame_key: str
     frame_id: str
     frame_manifest: dict
+    alignment: dict
     requirement_text: str | None
     normalized_keys: list[str]
     quality_report: dict

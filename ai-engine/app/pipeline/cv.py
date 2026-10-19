@@ -7,9 +7,13 @@ from app.pipeline.color import correct_color
 from app.pipeline.segment import segment_person
 
 
-def compose_subject(subject: Image.Image, frame: Image.Image) -> Image.Image:
+def compose_subject(
+    subject: Image.Image,
+    frame: Image.Image,
+    landmarks: dict | None = None,
+) -> Image.Image:
     """Run the deterministic CV composition chain for one subject."""
-    aligned = align_subject(subject, frame)
+    aligned = align_subject(subject, frame, landmarks)
     # Recompute the mask after alignment so transparent padding remains
     # transparent instead of becoming an opaque black rectangle.
     mask = segment_person(aligned)
