@@ -2,20 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { ApiError } from '@/api/client';
 import { createJob, getFrame, getQuota } from '@/api/frames';
-import type { PipelineType } from '@/api/types';
+import { uploadImage } from '@/api/uploads';
 import { BottomBar } from '@/components/BottomBar';
 import { Button } from '@/components/Button';
-import { Chip } from '@/components/Chip';
 import { ConsentCheckbox } from '@/components/ConsentCheckbox';
-import { RadioCard } from '@/components/RadioCard';
+import { FormAlert } from '@/components/FormAlert';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAsync } from '@/hooks/useAsync';
-import { useComposeDraft } from '@/hooks/useComposeDraft';
+import { composeDraft, useComposeDraft } from '@/hooks/useComposeDraft';
 import { colors, fonts, layout, radius, type } from '@/theme/tokens';
 
 const MAX_REQUIREMENT = 200;
-const COUNTS = [1, 2, 3, 4] as const;
+/** 프레임 슬롯 수에 맞춘 결과 1장을 AI가 생성한다 */
+const IMAGE_COUNT = 1;
+
+type Stage = 'idle' | 'uploading' | 'requesting';
 
 export default function SettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,22 +27,20 @@ export default function SettingsScreen() {
   const { data: quota } = useAsync(getQuota, []);
   const draft = useComposeDraft();
 
-  const [mode, setMode] = useState<PipelineType>('CV');
   const [requirement, setRequirement] = useState('');
-  const [imageCount, setImageCount] = useState(1);
   const [consent, setConsent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [stage, setStage] = useState<Stage>('idle');
+  const [error, setError] = useState<string | null>(null);
   const submitted = useRef(false);
 
-  const photos = draft.frameId === frameId ? draft.photos : {};
-  const filled = Object.keys(photos).length;
+  const photo = draft.frameId === frameId ? draft.photo : null;
 
-  // 사진이 다 채워지지 않은 상태로 들어오면(새로고침 등) 입력 화면으로 돌려보낸다
+  // 사진 없이 들어오면(새로고침 등) 입력 화면으로 돌려보낸다
   useEffect(() => {
-    if (!submitted.current && frame && filled < frame.slotCount) router.replace(`/frames/${frameId}/shoot`);
-  }, [frame, filled, frameId]);
+    if (!submitted.current && frame && !photo) router.replace(`/frames/${frameId}/shoot`);
+  }, [frame, photo, frameId]);
 
-  if (!frame) {
+  if (!frame || !photo) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader title="생성 설정" />
@@ -48,125 +49,105 @@ export default function SettingsScreen() {
     );
   }
 
-  const generative = mode === 'GENERATIVE';
-  const remaining = quota?.remaining ?? 0;
-  const noQuota = generative && quota != null && remaining <= 0;
-  // 남은 장수를 넘는 장수는 고를 수 없다 (요청 시 imageCount만큼 선차감)
-  const overQuota = generative && quota != null && imageCount > remaining;
-  const needsText = generative && requirement.trim().length === 0;
-  const canSubmit = consent && !needsText && !noQuota && !overQuota && !submitting;
+  const characterKey = frame.characterProfileImageKey;
+  const characterName = frame.characterName ?? '캐릭터';
+  // 쿼터 API가 응답하지 않으면 서버 검증(429)에 맡기고 막지 않는다
+  const noQuota = quota != null && quota.remaining < IMAGE_COUNT;
+  const needsText = requirement.trim().length === 0;
+  const busy = stage !== 'idle';
+  const canSubmit = consent && !needsText && !noQuota && !!characterKey && !busy;
 
   async function submit() {
-    if (!frame) return;
-    setSubmitting(true);
+    if (!frame || !photo || !characterKey) return;
+    setError(null);
     try {
-      // TODO: POST /api/v1/uploads/presigned 로 슬롯별 업로드 후 받은 key 사용
-      const res = await createJob({
-        frameId,
-        inputs: frame.slots.map((s) => ({ slotIndex: s.slotIndex, userImageKey: photos[s.slotIndex] })),
-        ...(generative ? { requirementText: requirement.trim(), imageCount } : {}),
+      // 1) 로컬 URI는 서버가 읽을 수 없으므로 presigned URL로 먼저 올리고 objectKey를 받는다
+      let userImageKey = photo.objectKey;
+      if (!userImageKey) {
+        setStage('uploading');
+        userImageKey = await uploadImage(photo);
+        composeDraft.setUploadedKey(userImageKey);
+      }
+      // 2) 생성형 작업 요청: [사용자 사진, 프레임 캐릭터 이미지]
+      setStage('requesting');
+      const job = await createJob({
+        frameId: frame.id,
+        pipelineType: 'GENERATIVE',
+        requirementText: requirement.trim(),
+        imageCount: IMAGE_COUNT,
+        inputs: [
+          { slotIndex: 0, userImageKey },
+          { slotIndex: 1, userImageKey: characterKey },
+        ],
       });
       submitted.current = true;
       // 프레임 선택~설정 화면을 스택에서 걷어내고 진행 화면만 남긴다. 입력 초기화는 진행 화면에서 한다
       router.dismissAll();
-      router.push(`/jobs/${res.jobId}`);
-    } catch {
-      setSubmitting(false);
+      router.push(`/jobs/${job.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '잠시 후 다시 시도해 주세요.');
+      if (e instanceof ApiError && e.status === 401) setError('로그인이 만료됐어요. 다시 로그인해 주세요.');
+      setStage('idle');
     }
   }
-
-  const thumbs = frame.slots.map((s) => (
-    <Image key={s.slotIndex} source={{ uri: photos[s.slotIndex] }} style={generative ? styles.thumbSm : styles.thumb} />
-  ));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader title="생성 설정" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          {generative ? (
-            <View style={styles.summaryCompact}>
-              <View style={styles.thumbRow}>{thumbs}</View>
-              <Text style={styles.summaryTitleSm} numberOfLines={1}>
+          <View style={styles.summary}>
+            <View style={styles.thumbRow}>
+              <Image source={{ uri: photo.uri }} style={styles.thumb} accessibilityLabel="내 사진" />
+              {frame.characterProfileImageUrl ? (
+                <Image source={{ uri: frame.characterProfileImageUrl }} style={styles.thumb} accessibilityLabel={`${characterName} 이미지`} />
+              ) : (
+                <View style={[styles.thumb, styles.thumbFallback]}>
+                  <Text style={styles.thumbInitial}>{characterName.slice(0, 1)}</Text>
+                </View>
+              )}
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.summaryTitle} numberOfLines={1}>
                 {frame.title} · {frame.slotCount}컷
               </Text>
-              <EditLink frameId={frameId} />
+              <Text style={styles.summarySub} numberOfLines={1}>
+                내 사진 + {characterName}
+              </Text>
             </View>
-          ) : (
-            <View style={styles.summary}>
-              <View style={{ flex: 1, gap: 6 }}>
-                <Text style={styles.summaryTitle}>{frame.title}</Text>
-                <Text style={styles.summaryOk}>✓ {frame.slotCount}컷 모두 입력됨</Text>
-                <View style={styles.thumbRow}>{thumbs}</View>
-              </View>
-              <EditLink frameId={frameId} />
-            </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={type.h2}>합성 방식</Text>
-            <View style={generative ? styles.radioRow : styles.radioCol} accessibilityRole="radiogroup">
-              <RadioCard
-                title="기본 합성"
-                description={generative ? '무료 · 약 10초' : '프레임에 사진을 자연스럽게 배치해요. 몇 초면 끝나요.'}
-                badge={{ label: '무료', tone: 'free' }}
-                selected={!generative}
-                compact={generative}
-                onPress={() => setMode('CV')}
-              />
-              <RadioCard
-                title="생성형 합성"
-                description={generative ? '쿼터 사용 · 약 40초' : '원하는 분위기를 글로 적으면 AI가 새로 그려요.'}
-                badge={{ label: '쿼터 사용', tone: 'quota' }}
-                selected={generative}
-                compact={generative}
-                onPress={() => setMode('GENERATIVE')}
-              />
-            </View>
-            {!generative && <Text style={type.caption}>요구사항 없이 만들면 기본 합성으로 처리돼요.</Text>}
+            <Pressable accessibilityRole="link" hitSlop={10} onPress={() => router.navigate(`/frames/${frameId}/shoot`)}>
+              <Text style={styles.edit}>수정</Text>
+            </Pressable>
           </View>
 
-          {generative && (
-            <>
-              <View style={styles.section}>
-                <Text style={type.h2} nativeID="req-label">
-                  원하는 분위기
-                </Text>
-                <TextInput
-                  value={requirement}
-                  onChangeText={(t) => setRequirement(t.slice(0, MAX_REQUIREMENT))}
-                  placeholder="벚꽃이 흩날리는 봄 공원에서 같이 웃고 있는 느낌으로"
-                  placeholderTextColor={colors.inkSub}
-                  multiline
-                  accessibilityLabelledBy="req-label"
-                  accessibilityLabel="원하는 분위기"
-                  style={styles.textarea}
-                />
-                <View style={styles.helperRow}>
-                  <Text style={type.caption}>예: 장소, 계절, 색감, 표정</Text>
-                  <Text style={type.caption}>
-                    {requirement.length} / {MAX_REQUIREMENT}
-                  </Text>
-                </View>
-              </View>
+          <View style={styles.section}>
+            <Text style={type.h2} nativeID="req-label">
+              원하는 분위기 <Text style={styles.required}>(필수)</Text>
+            </Text>
+            <TextInput
+              value={requirement}
+              onChangeText={(t) => setRequirement(t.slice(0, MAX_REQUIREMENT))}
+              placeholder="벚꽃이 흩날리는 봄 공원에서 같이 웃고 있는 느낌으로"
+              placeholderTextColor={colors.inkSub}
+              multiline
+              accessibilityLabelledBy="req-label"
+              accessibilityLabel="원하는 분위기, 필수"
+              style={styles.textarea}
+            />
+            <View style={styles.helperRow}>
+              <Text style={type.caption}>예: 장소, 계절, 색감, 표정</Text>
+              <Text style={type.caption}>
+                {requirement.length} / {MAX_REQUIREMENT}
+              </Text>
+            </View>
+          </View>
 
-              <View style={styles.section}>
-                <Text style={type.h2}>결과 장수</Text>
-                <View style={styles.counts} accessibilityRole="radiogroup">
-                  {COUNTS.map((n) => (
-                    <View key={n} style={{ flex: 1 }}>
-                      <Chip
-                        label={`${n}장`}
-                        selected={imageCount === n}
-                        disabled={quota != null && n > remaining}
-                        onPress={() => setImageCount(n)}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </>
-          )}
+          <View style={styles.info}>
+            <Text style={styles.infoText}>
+              AI가 두 사진과 분위기를 바탕으로 <Text style={styles.infoStrong}>{frame.slotCount}컷 프레임</Text>을 채워 결과
+              1장을 만들어요.
+            </Text>
+          </View>
 
           <View style={styles.consent}>
             <ConsentCheckbox
@@ -176,61 +157,54 @@ export default function SettingsScreen() {
               description="본인이 아니거나 동의 없는 사진은 합성할 수 없어요."
             />
           </View>
+
+          {error && <FormAlert message={error} />}
         </ScrollView>
 
         <BottomBar>
           <Text style={styles.estimate}>
-            {generative ? (
-              noQuota ? (
-                '오늘 생성형 한도를 모두 썼어요. 기본 합성은 계속 쓸 수 있어요.'
-              ) : (
-                <>
-                  예상 약 40초 · 이번에 <Text style={styles.estimateStrong}>{imageCount}장</Text> 차감 · 오늘 남은{' '}
-                  <Text style={styles.estimateStrong}>{quota ? `${remaining}장` : '-'}</Text>
-                </>
-              )
+            {noQuota ? (
+              '오늘 생성 한도를 모두 썼어요.'
             ) : (
-              '예상 약 10초 · 쿼터 차감 없음'
+              <>
+                예상 약 40초 · 이번에 <Text style={styles.estimateStrong}>{IMAGE_COUNT}장</Text> 차감
+                {quota ? (
+                  <>
+                    {' '}
+                    · 오늘 남은 <Text style={styles.estimateStrong}>{quota.remaining}장</Text>
+                  </>
+                ) : null}
+              </>
             )}
           </Text>
           <Button
-            title={submitting ? '요청 중…' : generative ? `사진 ${imageCount}장 만들기` : '사진 만들기'}
+            title={stage === 'uploading' ? '사진 올리는 중…' : stage === 'requesting' ? '요청 중…' : '만들기'}
             disabled={!canSubmit}
             onPress={submit}
           />
-          {!consent && <Text style={styles.hint}>동의 항목을 확인하면 만들 수 있어요.</Text>}
-          {consent && needsText && <Text style={styles.hint}>원하는 분위기를 적어 주세요.</Text>}
+          {!busy && !consent && <Text style={styles.hint}>동의 항목을 확인하면 만들 수 있어요.</Text>}
+          {!busy && consent && needsText && <Text style={styles.hint}>원하는 분위기를 적어 주세요.</Text>}
         </BottomBar>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function EditLink({ frameId }: { frameId: string }) {
-  return (
-    <Pressable accessibilityRole="link" hitSlop={10} onPress={() => router.navigate(`/frames/${frameId}/shoot`)}>
-      <Text style={styles.edit}>수정</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { width: '100%', maxWidth: layout.maxContentWidth, alignSelf: 'center', padding: 20, paddingTop: 8, gap: 22 },
-  summary: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, padding: 14, borderRadius: radius.lg - 2, backgroundColor: colors.surface },
-  summaryCompact: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.lg - 4, backgroundColor: colors.surface },
-  summaryTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
-  summaryTitleSm: { flex: 1, fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
-  summaryOk: { fontFamily: fonts.semibold, fontSize: 12, color: '#1F7A4E' },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: radius.lg - 2, backgroundColor: colors.surface },
   thumbRow: { flexDirection: 'row', gap: 6 },
-  thumb: { width: 40, height: 40, borderRadius: 8, backgroundColor: colors.border },
-  thumbSm: { width: 28, height: 28, borderRadius: 6, backgroundColor: colors.border },
+  thumb: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.border },
+  thumbFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cardVideo },
+  thumbInitial: { fontFamily: fonts.display, fontSize: 20, color: 'rgba(43,29,22,0.5)' },
+  summaryTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  summarySub: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkSub },
   edit: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primaryText },
   section: { gap: 10 },
-  radioCol: { gap: 10 },
-  radioRow: { flexDirection: 'row', gap: 10 },
+  required: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primaryText },
   textarea: {
-    minHeight: 104,
+    minHeight: 120,
     padding: 14,
     borderRadius: radius.md,
     borderWidth: 1.5,
@@ -242,7 +216,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   helperRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  counts: { flexDirection: 'row', gap: 8 },
+  info: { padding: 14, borderRadius: radius.md, backgroundColor: colors.cream },
+  infoText: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: '#4A3A31' },
+  infoStrong: { fontFamily: fonts.bold, color: colors.ink },
   consent: { paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   estimate: { ...type.caption, fontSize: 13, textAlign: 'center' },
   estimateStrong: { fontFamily: fonts.bold, color: colors.ink },
