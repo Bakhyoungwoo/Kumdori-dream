@@ -30,9 +30,6 @@ public class Frame {
     public static Frame characterFrame(Character character, String title, String description, String templateKey, int slotCount) {
         return new Frame(character, null, FrameSourceType.CHARACTER, title, description, templateKey, slotCount);
     }
-    public static Frame userFrame(User owner, String title, String description, String templateKey, int slotCount) {
-        return new Frame(null, owner, FrameSourceType.USER_UPLOADED, title, description, templateKey, slotCount);
-    }
     public void addSlot(int index, String targetImageKey, String analysis) { slots.add(new FrameSlot(this, index, targetImageKey, analysis)); }
     public void recordUsage() { usageCount++; }
     public UUID getId() { return id; }

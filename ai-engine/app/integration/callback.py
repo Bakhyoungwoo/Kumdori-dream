@@ -1,8 +1,12 @@
+import asyncio
+import logging
 from typing import Any
 
 import httpx
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 async def report_started(job_id: str) -> None:
@@ -31,11 +35,20 @@ async def report_failed(job_id: str, error_code: str, retryable: bool = False) -
 
 
 async def _post(path: str, payload: dict[str, Any]) -> None:
-    # TODO: add timeout/retry policy and structured callback logging.
-    async with httpx.AsyncClient(base_url=settings.core_api_url) as client:
-        response = await client.post(
-            path,
-            json=payload,
-            headers={"X-AI-Engine-Secret": settings.ai_engine_secret},
-        )
-        response.raise_for_status()
+    timeout = httpx.Timeout(settings.callback_timeout_seconds)
+    for attempt in range(1, settings.callback_max_retries + 1):
+        try:
+            async with httpx.AsyncClient(base_url=settings.core_api_url, timeout=timeout) as client:
+                response = await client.post(
+                    path,
+                    json=payload,
+                    headers={"X-AI-Engine-Secret": settings.ai_engine_secret},
+                )
+                response.raise_for_status()
+            return
+        except (httpx.HTTPError, httpx.TimeoutException):
+            if attempt == settings.callback_max_retries:
+                raise
+            delay = min(2 ** (attempt - 1), 5)
+            logger.warning("callback failed; retrying", extra={"path": path, "attempt": attempt})
+            await asyncio.sleep(delay)
