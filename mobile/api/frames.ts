@@ -1,5 +1,5 @@
 import { request } from './client';
-import type { Character, CreateJobRequest, CreateJobResponse, FrameDetail, FrameSource, FrameSummary, Quota } from './types';
+import type { Character, CreateJobRequest, FrameDetail, FrameSource, FrameSummary, JobResponse, Quota } from './types';
 
 type CharacterResponse = { id: string; name: string; profileImageKey: string | null };
 type FrameResponse = {
@@ -8,6 +8,8 @@ type FrameResponse = {
   description: string | null;
   characterId: string | null;
   characterName: string | null;
+  characterProfileImageKey: string | null;
+  characterProfileImageUrl: string | null;
   source: FrameSource;
   templateKey: string;
   templatePreviewUrl: string | null;
@@ -29,10 +31,12 @@ export async function getCharacters(): Promise<Character[]> {
   return response.map(toCharacter);
 }
 
-export async function getFrames(params: { source: FrameSource; characterId?: string | null; query?: string }): Promise<FrameSummary[]> {
-  const search = new URLSearchParams({ source: params.source });
+/** 공식 캐릭터 프레임만 조회한다 (서버도 CHARACTER 프레임만 반환) */
+export async function getFrames(params: { characterId?: string | null; query?: string } = {}): Promise<FrameSummary[]> {
+  const search = new URLSearchParams();
   if (params.characterId) search.set('characterId', params.characterId);
-  const response = await request<FrameResponse[]>(`/frames?${search.toString()}`);
+  const qs = search.toString();
+  const response = await request<FrameResponse[]>(`/frames${qs ? `?${qs}` : ''}`);
   const query = params.query?.trim().toLowerCase() ?? '';
   return response.map(toFrame).filter((frame) => !query || frame.title.toLowerCase().includes(query) || (frame.characterName ?? '').toLowerCase().includes(query));
 }
@@ -53,6 +57,14 @@ export async function getQuota(): Promise<Quota> {
   return request<Quota>('/users/me/quota');
 }
 
-export async function createJob(req: CreateJobRequest): Promise<CreateJobResponse> {
-  return request<CreateJobResponse>('/jobs', { method: 'POST', body: JSON.stringify(req) });
+const newIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+/** 작업 생성. 응답의 작업 ID는 `id` */
+export async function createJob(req: CreateJobRequest, idempotencyKey = newIdempotencyKey()): Promise<JobResponse> {
+  return request<JobResponse>('/jobs', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(req),
+  });
 }
