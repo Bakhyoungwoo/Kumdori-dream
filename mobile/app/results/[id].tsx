@@ -68,12 +68,14 @@ export default function ResultScreen() {
     try {
       // TODO: 원래 잡의 입력(슬롯별 이미지 key)을 서버가 재사용하는 API로 교체
       const res = await createJob({
-        frameId: String(result!.frameId ?? ''),
+        frameId: result!.frameId == null ? null : String(result!.frameId),
+        pipelineType: 'GENERATIVE',
+        requirementText: result!.requirementText,
+        imageCount: result!.imageCount,
         inputs: [],
-        ...(generative ? { requirementText: result!.requirementText, imageCount: result!.imageCount } : {}),
       });
       setSheet(null);
-      router.replace(`/jobs/${res.jobId}`);
+      router.replace(`/jobs/${res.id}`);
     } finally {
       setBusy(false);
     }
