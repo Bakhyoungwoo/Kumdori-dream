@@ -8,3 +8,5 @@ rembg
 mediapipe
 opencv-python-headless
 pillow
+openai
+google-genai

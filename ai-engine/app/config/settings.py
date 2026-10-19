@@ -23,6 +23,19 @@ class Settings(BaseSettings):
     pose_min_detection_confidence: float = 0.5
     pose_min_landmark_visibility: float = 0.5
     pose_bbox_padding: float = 0.08
+    openai_api_key: str | None = None
+    gemini_api_key: str | None = None
+    prompt_model: str = "gpt-4.1-mini"
+    image_model: str = "gpt-image-2.5-sunburst"
+    video_model: str = "veo-3.1-generate-preview"
+    image_provider: str = "openai"
+    video_provider: str = "google"
+    image_quality: str = "high"
+    image_size: str = "1024x1024"
+    video_duration_seconds: int = 8
+    video_aspect_ratio: str = "9:16"
+    video_generate_audio: bool = True
+    generation_timeout_seconds: float = 300.0
 
 
 settings = Settings()
