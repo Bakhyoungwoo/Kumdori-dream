@@ -17,3 +17,10 @@ export function formatBytes(n: number): string {
 export function formatDuration(sec: number): string {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
+
+/** 받침 유무에 따라 '와/과'를 붙인다. 예: withParticle('루미') → '루미와' */
+export function withParticle(word: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  if (code < 0 || code > 11171) return `${word}와`;
+  return `${word}${code % 28 === 0 ? '와' : '과'}`;
+}
