@@ -28,6 +28,8 @@ async def validate_input(state: ComposeState) -> ComposeState:
         "requirement_text": "requirementText",
         "image_count": "imageCount",
         "frame_id": "frameId",
+        "frame_key": "frameKey",
+        "character_image_key": "characterImageKey",
     }
     for internal_key, transport_key in aliases.items():
         if not state.get(internal_key) and state.get(transport_key) is not None:
@@ -48,6 +50,8 @@ async def validate_input(state: ComposeState) -> ComposeState:
         ]
     if not state.get("frame_key") and state.get("frame_manifest", {}).get("key"):
         state["frame_key"] = state["frame_manifest"]["key"]
+    if not state.get("frame_key") and state.get("character_image_key"):
+        state["frame_key"] = state["character_image_key"]
     if not state.get("alignment") and state.get("frame_manifest", {}).get("alignment"):
         state["alignment"] = state["frame_manifest"]["alignment"]
     if not state.get("input_keys"):
@@ -137,36 +141,32 @@ async def cv_pipeline(state: ComposeState) -> ComposeState:
         try:
             content = await object_storage.download(key)
             subjects.append(Image.open(BytesIO(content)).convert("RGBA"))
-        except FileNotFoundError:
-            # Graph-only callers can still exercise routing before storage is
-            # configured. Real compose events must provide existing keys.
-            subjects = []
-            break
+        except FileNotFoundError as exc:
+            raise ValueError(f"input object not found: {key}") from exc
 
-    if subjects:
-        frame_key = state.get("frame_key")
-        if frame_key:
-            frame = Image.open(BytesIO(await object_storage.download(frame_key))).convert("RGBA")
-        else:
-            frame = Image.new("RGBA", subjects[0].size, (255, 255, 255, 255))
+    frame_key = state.get("frame_key")
+    if frame_key:
+        frame = Image.open(BytesIO(await object_storage.download(frame_key))).convert("RGBA")
+    else:
+        frame = Image.new("RGBA", subjects[0].size, (255, 255, 255, 255))
 
-        result = frame
-        for subject in subjects:
-            result = compose_subject(subject, result, state.get("alignment"))
+    result = frame
+    for subject in subjects:
+        result = compose_subject(subject, result, state.get("alignment"))
 
-        output = BytesIO()
-        result.save(output, format="PNG")
-        result_key = f"results/{state['job_id']}/result.png"
-        await object_storage.upload(result_key, output.getvalue(), "image/png")
+    output = BytesIO()
+    result.save(output, format="PNG")
+    result_key = f"results/{state['job_id']}/result.png"
+    await object_storage.upload(result_key, output.getvalue(), "image/png")
 
-        thumbnail = result.copy()
-        thumbnail.thumbnail((320, 320), Image.Resampling.LANCZOS)
-        thumb_output = BytesIO()
-        thumbnail.convert("RGB").save(thumb_output, format="JPEG", quality=85)
-        thumbnail_key = f"results/{state['job_id']}/thumbnail.jpg"
-        await object_storage.upload(thumbnail_key, thumb_output.getvalue(), "image/jpeg")
-        state["result_keys"] = [result_key]
-        state["thumbnail_key"] = thumbnail_key
+    thumbnail = result.copy()
+    thumbnail.thumbnail((320, 320), Image.Resampling.LANCZOS)
+    thumb_output = BytesIO()
+    thumbnail.convert("RGB").save(thumb_output, format="JPEG", quality=85)
+    thumbnail_key = f"results/{state['job_id']}/thumbnail.jpg"
+    await object_storage.upload(thumbnail_key, thumb_output.getvalue(), "image/jpeg")
+    state["result_keys"] = [result_key]
+    state["thumbnail_key"] = thumbnail_key
 
     state["current_step"] = "POSTPROCESSING"
     state["progress"] = 95

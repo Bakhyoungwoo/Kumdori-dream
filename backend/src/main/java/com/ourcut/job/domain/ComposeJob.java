@@ -14,6 +14,7 @@ public class ComposeJob {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "frame_id") private Frame frame;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private ComposeJobStatus status = ComposeJobStatus.PENDING;
     @Enumerated(EnumType.STRING) @Column(name = "pipeline_type", nullable = false, length = 20) private PipelineType pipelineType = PipelineType.CV;
+    @Enumerated(EnumType.STRING) @Column(name = "media_type", nullable = false, length = 20) private MediaType mediaType = MediaType.IMAGE;
     @Column(name = "requirement_text", length = 200) private String requirementText;
     @Column(name = "image_count", nullable = false) private int imageCount = 1;
     @Column(nullable = false) private int progress;
@@ -28,8 +29,9 @@ public class ComposeJob {
     @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true) @OrderBy("variantIndex ASC") private List<ComposeResult> results = new ArrayList<>();
 
     protected ComposeJob() {}
-    public ComposeJob(User user, Frame frame, PipelineType pipelineType, String requirementText, int imageCount, String idempotencyKey) {
+    public ComposeJob(User user, Frame frame, PipelineType pipelineType, MediaType mediaType, String requirementText, int imageCount, String idempotencyKey) {
         this.id = UUID.randomUUID(); this.user = user; this.frame = frame; this.pipelineType = pipelineType;
+        this.mediaType = mediaType;
         this.requirementText = requirementText; this.imageCount = imageCount; this.idempotencyKey = idempotencyKey;
         this.createdAt = Instant.now(); this.updatedAt = this.createdAt;
     }
@@ -55,6 +57,7 @@ public class ComposeJob {
     public Frame getFrame() { return frame; }
     public ComposeJobStatus getStatus() { return status; }
     public PipelineType getPipelineType() { return pipelineType; }
+    public MediaType getMediaType() { return mediaType; }
     public String getRequirementText() { return requirementText; }
     public int getImageCount() { return imageCount; }
     public int getProgress() { return progress; }

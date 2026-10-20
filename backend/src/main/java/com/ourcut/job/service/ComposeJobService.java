@@ -6,6 +6,7 @@ import com.ourcut.character.domain.Frame;
 import com.ourcut.character.repository.FrameRepository;
 import com.ourcut.job.domain.ComposeJob;
 import com.ourcut.job.domain.PipelineType;
+import com.ourcut.job.domain.MediaType;
 import com.ourcut.job.dto.JobDtos;
 import com.ourcut.job.outbox.OutboxEvent;
 import com.ourcut.job.outbox.OutboxEventRepository;
@@ -61,7 +62,7 @@ public class ComposeJobService {
 
         String requirementText = request.normalizedRequirementText();
         ComposeJob job = jobs.save(new ComposeJob(
-            user, frame, request.pipelineType(), requirementText,
+            user, frame, request.pipelineType(), request.resolvedMediaType(), requirementText,
             request.resolvedImageCount(), idempotencyKey));
         request.inputs().forEach(input -> job.addInput(input.slotIndex(), input.userImageKey().trim()));
 
@@ -139,6 +140,9 @@ public class ComposeJobService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found");
         }
         String requirement = request.normalizedRequirementText();
+        if (request.resolvedMediaType() == MediaType.VIDEO && request.pipelineType() != PipelineType.GENERATIVE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Video jobs require the generative pipeline");
+        }
         if (request.pipelineType() == PipelineType.CV && (requirement != null || request.resolvedImageCount() != 1)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CV jobs require no requirement and one image");
         }
@@ -182,13 +186,16 @@ public class ComposeJobService {
         try {
             return objectMapper.writeValueAsString(new ComposeRequestPayload(
                 job.getId(), job.getUser().getId(), job.getFrame() == null ? null : job.getFrame().getId(),
-                job.getFrame() == null ? null : job.getFrame().getSlotCount(), job.getPipelineType(),
-                job.getRequirementText(), job.getImageCount(), request.inputs()));
+                job.getFrame() == null ? null : job.getFrame().getSlotCount(), job.getPipelineType(), job.getMediaType(),
+                job.getRequirementText(), job.getImageCount(), request.inputs(),
+                job.getFrame() == null ? null : job.getFrame().getTemplateKey(),
+                job.getFrame() == null || job.getFrame().getCharacter() == null ? null : job.getFrame().getCharacter().getProfileImageKey()));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to serialize compose request", exception);
         }
     }
 
     private record ComposeRequestPayload(UUID jobId, UUID userId, UUID frameId, Integer frameSlotCount, PipelineType pipelineType,
-                                         String requirementText, int imageCount, Object inputs) {}
+                                         MediaType mediaType, String requirementText, int imageCount, Object inputs,
+                                         String frameKey, String characterImageKey) {}
 }

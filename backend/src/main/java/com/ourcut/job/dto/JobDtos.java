@@ -3,6 +3,7 @@ package com.ourcut.job.dto;
 import com.ourcut.job.domain.ComposeJob;
 import com.ourcut.job.domain.ComposeJobStatus;
 import com.ourcut.job.domain.PipelineType;
+import com.ourcut.job.domain.MediaType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
@@ -16,6 +17,7 @@ public final class JobDtos {
     public record CreateJobRequest(
         UUID frameId,
         @NotNull PipelineType pipelineType,
+        MediaType mediaType,
         @Size(max = 200) String requirementText,
         @Min(1) @Max(4) Integer imageCount,
         @NotNull @Size(max = 4) List<@Valid Input> inputs
@@ -26,6 +28,7 @@ public final class JobDtos {
         public String normalizedRequirementText() {
             return requirementText == null || requirementText.isBlank() ? null : requirementText.trim();
         }
+        public MediaType resolvedMediaType() { return mediaType == null ? MediaType.IMAGE : mediaType; }
     }
 
     public record Input(
@@ -38,6 +41,7 @@ public final class JobDtos {
         UUID frameId,
         ComposeJobStatus status,
         PipelineType pipelineType,
+        MediaType mediaType,
         String requirementText,
         int imageCount,
         int progress,
@@ -48,7 +52,7 @@ public final class JobDtos {
     ) {
         public static JobResponse from(ComposeJob job) {
             return new JobResponse(
-                job.getId(), job.getFrame() == null ? null : job.getFrame().getId(), job.getStatus(), job.getPipelineType(),
+                job.getId(), job.getFrame() == null ? null : job.getFrame().getId(), job.getStatus(), job.getPipelineType(), job.getMediaType(),
                 job.getRequirementText(), job.getImageCount(), job.getProgress(), job.getErrorCode(),
                 job.getResults().stream().map(ResultResponse::from).toList(),
                 job.getCreatedAt(), job.getUpdatedAt());
