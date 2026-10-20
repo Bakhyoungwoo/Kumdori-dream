@@ -11,6 +11,23 @@ from pydantic import BaseModel, Field
 from app.config import settings
 
 
+class ProviderConfigurationError(RuntimeError):
+    """Raised when a configured external provider cannot be used."""
+
+
+def _run_with_retries(operation, label: str):
+    """Run a synchronous SDK call with bounded retries for transient failures."""
+    attempts = max(1, settings.provider_max_retries + 1)
+    for attempt in range(attempts):
+        try:
+            return operation()
+        except (TimeoutError, ConnectionError, OSError):
+            if attempt == attempts - 1:
+                raise
+            delay = settings.provider_retry_backoff_seconds * (2**attempt)
+            time.sleep(delay)
+
+
 class PromptPlan(BaseModel):
     scene: str = ""
     mood: str = ""
@@ -63,6 +80,22 @@ PROMPT_SYSTEM = """
 - 모든 생성 프롬프트는 영어로 작성하되, 사용자의 의도는 보존하세요.
 """.strip()
 
+PROMPT_SYSTEM = """
+You are a prompt planner for an image and video composition service.
+Convert the user's request into a faithful PromptPlan JSON response.
+
+Rules:
+- Preserve the user's requested subject, action, characters, setting, and mood.
+- Do not replace a named character or object with an unrelated scene.
+- The first supplied subject image is the person's identity reference.
+- A supplied frame image is a scene or character reference, not a replacement
+  for the person's identity.
+- For image generation, describe a concrete visual scene and keep the original
+  request's meaning even when the request is written in Korean.
+- Do not invent extra people, props, text, logos, or unrelated story elements.
+- Return only the requested JSON schema.
+""".strip()
+
 IMAGE_PROMPT_SYSTEM = PROMPT_SYSTEM + """
 
 ## 이미지 전용 지침
@@ -84,10 +117,15 @@ VIDEO_PROMPT_SYSTEM = PROMPT_SYSTEM + """
 """
 
 FINAL_IMAGE_CONSTRAINTS = """
-Hard constraints: preserve the person's identity, face, body proportions, pose,
-number of people, clothing, and the supplied frame layout. Do not add people,
-text, logos, watermarks, extra limbs, distorted hands, altered age, or unrelated
-objects. Follow only the requested scene, mood, lighting, style, and composition.
+Hard constraints: the first supplied subject image is the identity reference;
+preserve the person's identity, facial structure, recognizable features,
+face shape, skin tone, body proportions, pose, and clothing. If multiple subject
+images are supplied, treat them as photos of the same person and reconcile them
+into one consistent identity; never invent or substitute another person. The
+supplied frame image is a scene/layout reference, not a replacement identity.
+Do not add people, text, logos, watermarks, extra limbs, distorted hands,
+altered age, or unrelated objects. Follow only the requested scene, mood,
+lighting, style, and composition.
 """.strip()
 
 FINAL_VIDEO_CONSTRAINTS = """
@@ -99,7 +137,13 @@ watermarks, scene cuts, identity changes, extra limbs, or distorted anatomy.
 
 
 def _schema() -> dict[str, Any]:
-    return PromptPlan.model_json_schema()
+    schema = PromptPlan.model_json_schema()
+    # OpenAI strict JSON schema responses require closed objects and all
+    # declared properties to be required. The Pydantic defaults still provide
+    # defensive values if a non-OpenAI provider is used later.
+    schema["additionalProperties"] = False
+    schema["required"] = list(schema.get("properties", {}))
+    return schema
 
 
 def build_human_message(
@@ -124,10 +168,21 @@ def build_human_message(
     """.strip()
 
 
-def build_final_prompt(plan: PromptPlan, media_type: str) -> str:
+def build_final_prompt(
+    plan: PromptPlan,
+    media_type: str,
+    user_request: str | None = None,
+) -> str:
+    request_constraint = ""
+    if user_request and user_request.strip():
+        request_constraint = (
+            "User's original request (must be followed exactly): "
+            + user_request.strip()
+            + "\n\n"
+        )
     if media_type == "VIDEO":
-        return f"{plan.video_prompt.strip()}\n\n{FINAL_VIDEO_CONSTRAINTS}"
-    return f"{plan.image_prompt.strip()}\n\n{FINAL_IMAGE_CONSTRAINTS}"
+        return f"{request_constraint}{plan.video_prompt.strip()}\n\n{FINAL_VIDEO_CONSTRAINTS}"
+    return f"{request_constraint}{plan.image_prompt.strip()}\n\n{FINAL_IMAGE_CONSTRAINTS}"
 
 
 async def plan_prompt(
@@ -151,23 +206,31 @@ async def plan_prompt(
             ],
         )
 
-    from openai import OpenAI
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        raise ProviderConfigurationError(
+            "OpenAI provider is configured but the openai package is not installed"
+        ) from exc
 
     def call() -> PromptPlan:
         client = OpenAI(api_key=settings.openai_api_key)
-        response = client.responses.create(
-            model=settings.prompt_model,
-            instructions=VIDEO_PROMPT_SYSTEM if media_type == "VIDEO" else IMAGE_PROMPT_SYSTEM,
-            input=human_message,
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "prompt_plan",
-                    "strict": True,
-                    "schema": _schema(),
+        def request():
+            return client.responses.create(
+                model=settings.prompt_model,
+                instructions=VIDEO_PROMPT_SYSTEM if media_type == "VIDEO" else IMAGE_PROMPT_SYSTEM,
+                input=human_message,
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": "prompt_plan",
+                        "strict": True,
+                        "schema": _schema(),
+                    }
                 }
-            },
-        )
+            )
+
+        response = _run_with_retries(request, "prompt planning")
         return PromptPlan.model_validate(json.loads(response.output_text))
 
     return await asyncio.to_thread(call)
@@ -180,20 +243,32 @@ async def generate_image(
 ) -> list[bytes]:
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for the configured image provider")
-    from openai import OpenAI
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        raise ProviderConfigurationError(
+            "OpenAI image provider is configured but the openai package is not installed"
+        ) from exc
 
     def call() -> list[bytes]:
         client = OpenAI(api_key=settings.openai_api_key)
         files = [(name, content) for name, content in images]
-        response = client.images.edit(
-            model=settings.image_model,
-            image=files,
-            prompt=prompt,
-            n=max(1, min(count, 10)),
-            input_fidelity="high",
-            quality=settings.image_quality,
-            size=settings.image_size,
-            output_format="png",
+        request_kwargs = {
+            "model": settings.image_model,
+            "image": files,
+            "prompt": prompt,
+            "n": max(1, min(count, 10)),
+            "quality": settings.image_quality,
+            "size": settings.image_size,
+            "output_format": "png",
+        }
+        # gpt-image-2 models reject input_fidelity instead of ignoring it.
+        # Older image models may support it, so only send it where compatible.
+        if not settings.image_model.startswith("gpt-image-2"):
+            request_kwargs["input_fidelity"] = "high"
+        response = _run_with_retries(
+            lambda: client.images.edit(**request_kwargs),
+            "image generation",
         )
         return [base64.b64decode(item.b64_json) for item in response.data if item.b64_json]
 
@@ -203,20 +278,28 @@ async def generate_image(
 async def generate_video(prompt: str, image: bytes, mime_type: str = "image/png") -> bytes:
     if not settings.gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY is required for the configured video provider")
-    from google import genai
-    from google.genai import types
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError as exc:
+        raise ProviderConfigurationError(
+            "Google video provider is configured but the google-genai package is not installed"
+        ) from exc
 
     def call() -> bytes:
         client = genai.Client(api_key=settings.gemini_api_key)
-        operation = client.models.generate_videos(
-            model=settings.video_model,
-            prompt=prompt,
-            image=types.Image(image_bytes=image, mime_type=mime_type),
-            config=types.GenerateVideosConfig(
-                aspect_ratio=settings.video_aspect_ratio,
-                duration_seconds=settings.video_duration_seconds,
-                generate_audio=settings.video_generate_audio,
+        operation = _run_with_retries(
+            lambda: client.models.generate_videos(
+                model=settings.video_model,
+                prompt=prompt,
+                image=types.Image(image_bytes=image, mime_type=mime_type),
+                config=types.GenerateVideosConfig(
+                    aspect_ratio=settings.video_aspect_ratio,
+                    duration_seconds=settings.video_duration_seconds,
+                    generate_audio=settings.video_generate_audio,
+                ),
             ),
+            "video generation",
         )
         deadline = time.monotonic() + settings.generation_timeout_seconds
         while not operation.done:

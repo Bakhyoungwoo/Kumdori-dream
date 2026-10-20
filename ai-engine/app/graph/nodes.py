@@ -185,7 +185,7 @@ async def generative_pipeline(state: ComposeState) -> ComposeState:
         if frame_key:
             image_inputs.append(("frame.png", await object_storage.download(frame_key)))
         generated = await generate_image(
-            build_final_prompt(prompt_plan_result, "IMAGE"),
+            build_final_prompt(prompt_plan_result, "IMAGE", prompt),
             image_inputs,
             output_count,
         )
