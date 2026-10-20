@@ -6,7 +6,11 @@ from app.integration.storage import object_storage
 
 
 @pytest.mark.asyncio
-async def test_cv_graph_reaches_completed_state():
+async def test_cv_graph_reaches_completed_state(tmp_path):
+    object_storage.root = tmp_path
+    source = tmp_path / "uploads" / "job-1" / "input.png"
+    source.parent.mkdir(parents=True)
+    Image.new("RGBA", (12, 8), (220, 30, 30, 255)).save(source)
     result = await compose_graph.ainvoke(
         {
             "job_id": "job-1",
@@ -21,7 +25,11 @@ async def test_cv_graph_reaches_completed_state():
 
 
 @pytest.mark.asyncio
-async def test_core_api_payload_is_normalized():
+async def test_core_api_payload_is_normalized(tmp_path):
+    object_storage.root = tmp_path
+    source = tmp_path / "uploads" / "job-2" / "input.png"
+    source.parent.mkdir(parents=True)
+    Image.new("RGBA", (12, 8), (220, 30, 30, 255)).save(source)
     result = await compose_graph.ainvoke(
         {
             "job_id": "job-2",
