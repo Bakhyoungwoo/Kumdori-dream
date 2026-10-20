@@ -20,7 +20,19 @@ async def process_request(payload: dict[str, Any]) -> None:
     await report_started(job_id)
     try:
         result: dict[str, Any] = dict(payload)
-        async for update in compose_graph.astream(payload, stream_mode="updates"):
+        run_config = {
+            "run_name": f"compose:{job_id}",
+            "tags": ["compose", str(payload.get("media_type", "IMAGE")), str(payload.get("pipeline_type", "CV"))],
+            "metadata": {
+                "job_id": job_id,
+                "user_id": str(payload.get("user_id", "")),
+            },
+        }
+        async for update in compose_graph.astream(
+            payload,
+            config=run_config,
+            stream_mode="updates",
+        ):
             for node_state in update.values():
                 if isinstance(node_state, dict):
                     result.update(node_state)

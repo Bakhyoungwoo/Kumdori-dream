@@ -10,27 +10,41 @@ logger = logging.getLogger(__name__)
 
 
 async def report_started(job_id: str) -> None:
-    await _post(f"/internal/jobs/{job_id}/started", {})
+    await _post(
+        f"/api/v1/internal/jobs/{job_id}/callback",
+        {"status": "PROCESSING", "progress": 0},
+    )
 
 
 async def report_progress(job_id: str, step: str, progress: int) -> None:
     await _post(
-        f"/internal/jobs/{job_id}/progress",
-        {"step": step, "status": "PROCESSING", "progress": progress},
+        f"/api/v1/internal/jobs/{job_id}/callback",
+        {"status": "PROCESSING", "progress": progress},
     )
 
 
 async def report_done(job_id: str, result_keys: list[str], thumbnail_key: str | None = None) -> None:
     await _post(
-        f"/internal/jobs/{job_id}/done",
-        {"resultKeys": result_keys, "thumbnailKey": thumbnail_key},
+        f"/api/v1/internal/jobs/{job_id}/callback",
+        {
+            "status": "DONE",
+            "progress": 100,
+            "results": [
+                {
+                    "variantIndex": index,
+                    "resultKey": result_key,
+                    "thumbnailKey": thumbnail_key,
+                }
+                for index, result_key in enumerate(result_keys)
+            ],
+        },
     )
 
 
 async def report_failed(job_id: str, error_code: str, retryable: bool = False) -> None:
     await _post(
-        f"/internal/jobs/{job_id}/failed",
-        {"errorCode": error_code, "retryable": retryable},
+        f"/api/v1/internal/jobs/{job_id}/callback",
+        {"status": "FAILED", "errorCode": error_code},
     )
 
 
@@ -42,7 +56,7 @@ async def _post(path: str, payload: dict[str, Any]) -> None:
                 response = await client.post(
                     path,
                     json=payload,
-                    headers={"X-AI-Engine-Secret": settings.ai_engine_secret},
+                    headers={"X-Internal-Api-Key": settings.ai_engine_secret},
                 )
                 response.raise_for_status()
             return

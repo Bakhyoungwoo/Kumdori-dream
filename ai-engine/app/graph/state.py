@@ -15,10 +15,14 @@ class ComposeState(TypedDict, total=False):
     frame_manifest: dict
     alignment: dict
     requirement_text: str | None
+    image_count: int
+    result_prompt: str
+    prompt_plan: dict
     normalized_keys: list[str]
     quality_report: dict
     vision_features: dict
     generation_spec: dict
+    generation_mode: str
     current_step: str
     progress: int
     result_keys: list[str]
