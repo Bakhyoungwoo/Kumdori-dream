@@ -303,7 +303,6 @@ async def generate_video(prompt: str, image: bytes, mime_type: str = "image/png"
                 config=types.GenerateVideosConfig(
                     aspect_ratio=settings.video_aspect_ratio,
                     duration_seconds=settings.video_duration_seconds,
-                    generate_audio=settings.video_generate_audio,
                 ),
             ),
             "video generation",

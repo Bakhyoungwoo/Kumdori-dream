@@ -19,6 +19,20 @@ async def validate_input(state: ComposeState) -> ComposeState:
     if not state.get("job_id"):
         raise ValueError("job_id is required")
 
+    # Accept the camelCase transport shape emitted by core-api as well as
+    # the snake_case shape used internally by the engine.
+    aliases = {
+        "user_id": "userId",
+        "media_type": "mediaType",
+        "pipeline_type": "pipelineType",
+        "requirement_text": "requirementText",
+        "image_count": "imageCount",
+        "frame_id": "frameId",
+    }
+    for internal_key, transport_key in aliases.items():
+        if not state.get(internal_key) and state.get(transport_key) is not None:
+            state[internal_key] = state[transport_key]
+
     # The core-api payload currently carries UUIDs and inputs[].userImageKey.
     # Normalize that transport shape once at the graph boundary so downstream
     # nodes only deal with the engine's internal state shape.
