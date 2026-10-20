@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 httpx
 aiokafka
+boto3
 langgraph
 langsmith
 pydantic-settings

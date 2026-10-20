@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     core_api_url: str = "http://localhost:8080"
     ai_engine_secret: str = "change-me"
     storage_root: str = ".data/objects"
+    storage_backend: str = "local"
+    s3_bucket: str = ""
+    aws_region: str = "ap-northeast-2"
+    aws_s3_endpoint: str = ""
     kafka_enabled: bool = False
     callback_timeout_seconds: float = 10.0
     callback_max_retries: int = 3
