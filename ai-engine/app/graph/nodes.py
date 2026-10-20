@@ -181,11 +181,21 @@ async def generative_pipeline(state: ComposeState) -> ComposeState:
     output_count = state["generation_spec"]["constraints"]["max_outputs"]
     result_keys: list[str] = []
     if settings.image_provider == "openai" and settings.openai_api_key:
-        image_inputs = [("subject.png", await object_storage.download(keys[0]))]
+        image_inputs = [
+            ("identity-reference.png", await object_storage.download(keys[0]))
+        ]
         if frame_key:
-            image_inputs.append(("frame.png", await object_storage.download(frame_key)))
+            image_inputs.append(
+                ("character-or-scene-reference.png", await object_storage.download(frame_key))
+            )
+        image_prompt = (
+            build_final_prompt(prompt_plan_result, "IMAGE", prompt)
+            + "\n\nReference roles: identity-reference.png is the person whose identity must be preserved. "
+            + "character-or-scene-reference.png is an additional character or scene reference. "
+            + "Integrate both into one coherent photograph with matched lighting, perspective, scale, and contact shadows."
+        )
         generated = await generate_image(
-            build_final_prompt(prompt_plan_result, "IMAGE", prompt),
+            image_prompt,
             image_inputs,
             output_count,
         )

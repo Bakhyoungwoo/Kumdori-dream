@@ -122,7 +122,14 @@ preserve the person's identity, facial structure, recognizable features,
 face shape, skin tone, body proportions, pose, and clothing. If multiple subject
 images are supplied, treat them as photos of the same person and reconcile them
 into one consistent identity; never invent or substitute another person. The
-supplied frame image is a scene/layout reference, not a replacement identity.
+supplied additional images are reference inputs for the requested character or
+scene, not replacements for the person's identity. Render every subject as if
+captured in one photograph: use the same camera viewpoint, lens perspective,
+scale, exposure, white balance, light direction, color temperature, depth of
+field, and image grain. Match edges and occlusion naturally, and add physically
+plausible contact shadows and ambient light so people and characters sit on the
+ground and belong to the background. Never paste a cutout onto a background or
+leave mismatched studio lighting.
 Do not add people, text, logos, watermarks, extra limbs, distorted hands,
 altered age, or unrelated objects. Follow only the requested scene, mood,
 lighting, style, and composition.

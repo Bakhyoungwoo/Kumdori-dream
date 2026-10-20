@@ -37,6 +37,9 @@ def test_final_prompt_contains_identity_constraints():
     assert "preserve the person's identity" in prompt
     assert "first supplied subject image is the identity reference" in prompt
     assert "never invent or substitute another person" in prompt
+    assert "same camera viewpoint" in prompt
+    assert "physically" in prompt
+    assert "contact shadows" in prompt
 
 
 def test_final_prompt_keeps_original_user_request():
