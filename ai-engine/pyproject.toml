@@ -9,11 +9,14 @@ dependencies = [
     "httpx",
     "aiokafka",
     "langgraph",
+    "langsmith",
+    "openai",
     "pydantic-settings",
     "rembg",
     "mediapipe",
     "opencv-python-headless",
     "pillow",
+    "google-genai",
 ]
 
 [project.optional-dependencies]

@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,6 +38,28 @@ class Settings(BaseSettings):
     video_aspect_ratio: str = "9:16"
     video_generate_audio: bool = True
     generation_timeout_seconds: float = 300.0
+    provider_max_retries: int = 2
+    provider_retry_backoff_seconds: float = 1.0
+    langsmith_tracing: bool = False
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "ourcut-ai-engine"
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
 
 
 settings = Settings()
+
+
+def configure_langsmith() -> None:
+    """Expose settings loaded from .env to LangGraph/LangSmith tracing."""
+    if not settings.langsmith_tracing or not settings.langsmith_api_key:
+        return
+
+    os.environ.setdefault("LANGSMITH_TRACING", "true")
+    # Keep the legacy flag for older LangSmith/LangChain integrations.
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+    os.environ.setdefault("LANGSMITH_API_KEY", settings.langsmith_api_key)
+    os.environ.setdefault("LANGSMITH_PROJECT", settings.langsmith_project)
+    os.environ.setdefault("LANGSMITH_ENDPOINT", settings.langsmith_endpoint)
+
+
+configure_langsmith()

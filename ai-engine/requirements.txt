@@ -3,6 +3,7 @@ uvicorn[standard]
 httpx
 aiokafka
 langgraph
+langsmith
 pydantic-settings
 rembg
 mediapipe
