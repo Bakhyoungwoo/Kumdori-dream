@@ -21,8 +21,8 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 server:
   port: 8080
@@ -31,7 +31,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
   endpoint:
     health:
       probes:
@@ -43,6 +43,11 @@ app:
     topic: ${OUTBOX_KAFKA_TOPIC:compose.request}
     batch-size: ${OUTBOX_BATCH_SIZE:50}
     poll-ms: ${OUTBOX_POLL_MS:1000}
+  jobs:
+    timeout-seconds: ${JOB_TIMEOUT_SECONDS:1800}
+  quota:
+    daily-image-limit: ${DAILY_IMAGE_LIMIT:20}
+    global-image-limit: ${GLOBAL_IMAGE_LIMIT:10000}
   storage:
     s3:
       bucket: ${AWS_S3_BUCKET:}

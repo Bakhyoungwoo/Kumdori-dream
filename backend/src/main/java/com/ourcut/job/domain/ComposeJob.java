@@ -36,22 +36,37 @@ public class ComposeJob {
         this.createdAt = Instant.now(); this.updatedAt = this.createdAt;
     }
     public void addInput(int slotIndex, String userImageKey) { inputs.add(new ComposeJobInput(this, slotIndex, userImageKey)); }
-    public void queue() { changeStatus(ComposeJobStatus.QUEUED); }
-    public void start() { changeStatus(ComposeJobStatus.PROCESSING); startedAt = Instant.now(); }
+    public void queue() { transitionTo(ComposeJobStatus.QUEUED); }
+    public void start() {
+        if (status == ComposeJobStatus.PROCESSING) return;
+        transitionTo(ComposeJobStatus.PROCESSING);
+        startedAt = Instant.now();
+    }
     public void updateProgress(int value) { if (value < 0 || value > 100) throw new IllegalArgumentException("progress must be between 0 and 100"); progress = value; updatedAt = Instant.now(); }
-    public void complete() { changeStatus(ComposeJobStatus.DONE); progress = 100; finishedAt = Instant.now(); }
-    public void fail(String errorCode) { this.errorCode = errorCode; changeStatus(ComposeJobStatus.FAILED); finishedAt = Instant.now(); }
+    public void complete() { transitionTo(ComposeJobStatus.DONE); progress = 100; finishedAt = Instant.now(); }
+    public void fail(String errorCode) { this.errorCode = errorCode; transitionTo(ComposeJobStatus.FAILED); finishedAt = Instant.now(); }
+    public void timeout() { this.errorCode = "ENGINE_TIMEOUT"; transitionTo(ComposeJobStatus.ENGINE_TIMEOUT); finishedAt = Instant.now(); }
     public void cancel() {
-        if (status == ComposeJobStatus.DONE || status == ComposeJobStatus.FAILED || status == ComposeJobStatus.CANCELED) {
-            throw new IllegalStateException("Job cannot be canceled in status " + status);
-        }
-        changeStatus(ComposeJobStatus.CANCELED);
+        transitionTo(ComposeJobStatus.CANCELED);
         finishedAt = Instant.now();
     }
     public void addResult(int variantIndex, String resultKey, String thumbnailKey, Integer width, Integer height) {
         results.add(new ComposeResult(this, variantIndex, resultKey, thumbnailKey, width, height));
     }
-    private void changeStatus(ComposeJobStatus value) { status = value; updatedAt = Instant.now(); }
+    private void transitionTo(ComposeJobStatus target) {
+        boolean allowed = switch (status) {
+            case PENDING -> target == ComposeJobStatus.QUEUED || target == ComposeJobStatus.CANCELED;
+            case QUEUED -> target == ComposeJobStatus.PROCESSING
+                || target == ComposeJobStatus.CANCELED || target == ComposeJobStatus.ENGINE_TIMEOUT;
+            case PROCESSING -> target == ComposeJobStatus.PROCESSING
+                || target == ComposeJobStatus.DONE || target == ComposeJobStatus.FAILED
+                || target == ComposeJobStatus.CANCELED || target == ComposeJobStatus.ENGINE_TIMEOUT;
+            case DONE, FAILED, ENGINE_TIMEOUT, CANCELED -> false;
+        };
+        if (!allowed) throw new IllegalStateException("Invalid job transition: " + status + " -> " + target);
+        status = target;
+        updatedAt = Instant.now();
+    }
     public UUID getId() { return id; }
     public User getUser() { return user; }
     public Frame getFrame() { return frame; }
