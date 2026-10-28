@@ -48,7 +48,7 @@ export type CreateJobRequest = {
   inputs: JobInput[];
 };
 
-export type JobStatus = 'PENDING' | 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED' | 'CANCELED';
+export type JobStatus = 'PENDING' | 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED' | 'ENGINE_TIMEOUT' | 'CANCELED';
 
 /** backend JobDtos.JobResponse — 작업 ID는 `id` */
 export type JobResponse = {
@@ -56,6 +56,7 @@ export type JobResponse = {
   frameId: string | null;
   status: JobStatus;
   pipelineType: PipelineType;
+  mediaType: 'IMAGE' | 'VIDEO';
   requirementText: string | null;
   imageCount: number;
   progress: number;
@@ -74,7 +75,7 @@ export type Quota = { remaining: number; limit: number };
 export type GalleryKind = 'PHOTO' | 'VIDEO';
 export type GalleryStatus = 'PROCESSING' | 'DONE' | 'FAILED';
 
-/** 갤러리 목록 항목 (잡 단위). GET /api/v1/gallery */
+/** 갤러리 목록 항목 (잡 단위). GET /api/v1/jobs + GET /api/v1/gallery */
 export type GalleryItem = {
   id: string;
   title: string;
@@ -92,7 +93,7 @@ export type GalleryItem = {
   requirementText?: string;
 };
 
-export type ResultImage = { url: string | null; tint: string; format: 'PNG' | 'MP4'; sizeBytes: number };
+export type ResultImage = { url: string | null; tint: string; format: 'PNG' | 'MP4'; sizeBytes: number | null };
 
-/** 결과 상세. GET /api/v1/gallery/{resultId} */
+/** 결과 상세. GET /api/v1/jobs/{id} + GET /api/v1/gallery */
 export type ResultDetail = GalleryItem & { images: ResultImage[]; frameId: string | number | null };
