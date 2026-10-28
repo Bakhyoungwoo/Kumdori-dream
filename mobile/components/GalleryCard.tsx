@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import type { GalleryItem } from '@/api/types';
 import { AlertIcon, CheckIcon } from './icons';
@@ -106,6 +106,9 @@ function Thumb({ item, onRetry }: { item: GalleryItem; onRetry?: () => void }) {
         )}
       </>
     );
+  }
+  if (item.thumbnailUrl) {
+    return <Image source={{ uri: item.thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />;
   }
   if (item.pipeline === 'GENERATIVE') {
     return (
