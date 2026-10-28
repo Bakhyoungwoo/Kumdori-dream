@@ -1,88 +1,108 @@
-import type { CreateJobRequest, GalleryItem, GalleryKind, GalleryStatus, ResultDetail } from './types';
+import { ApiError, request } from './client';
+import type { GalleryItem, GalleryKind, GalleryStatus, JobResponse, JobStatus, ResultDetail, ResultImage } from './types';
 
-// TODO: core-api 연동 전 목업.
-//  GET /api/v1/gallery, GET /api/v1/gallery/{id}, DELETE /api/v1/gallery/{id}, POST /api/v1/jobs(재시도·다시 생성)
+/** GET /api/v1/gallery — 완료된 작업의 결과 1장당 항목 1개 (backend GalleryDtos.Item) */
+type GalleryApiItem = {
+  jobId: string;
+  frameId: string | null;
+  resultKey: string;
+  thumbnailKey: string | null;
+  resultPreviewUrl: string | null;
+  thumbnailPreviewUrl: string | null;
+  createdAt: string | null;
+};
 
-const delay = (ms = 200) => new Promise((r) => setTimeout(r, ms));
-const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+// 서버에는 제목·썸네일 색이 없다. 이미지가 없을 때만 쓰는 배경색
+const TINTS = ['#F7B9A6', '#B9C3F7', '#F9D68A', '#A8DCC6'];
+const tintOf = (id: string) => TINTS[id.charCodeAt(0) % TINTS.length];
 
-type Stored = ResultDetail;
+function toStatus(status: JobStatus): GalleryStatus {
+  if (status === 'DONE') return 'DONE';
+  if (status === 'FAILED' || status === 'ENGINE_TIMEOUT' || status === 'CANCELED') return 'FAILED';
+  return 'PROCESSING';
+}
 
-let items: Stored[] = [
-  {
-    id: 'job-fail-1', title: '여름 바다 컷', kind: 'PHOTO', pipeline: 'CV', status: 'FAILED', progress: 40, imageCount: 1,
-    createdAt: minutesAgo(10), tints: ['#A8DCC6', '#B9C3F7', '#A8DCC6', '#B9C3F7'], thumbnailUrl: null,
-    failureReason: '얼굴을 찾지 못했어요', frameId: 201, images: [],
-  },
-  {
-    id: 'job-cv-1', title: '첫 팬미팅 네컷', kind: 'PHOTO', pipeline: 'CV', status: 'DONE', progress: 100, imageCount: 1,
-    createdAt: minutesAgo(60 * 20), tints: ['#F7B9A6', '#B9C3F7', '#F9D68A', '#A8DCC6'], thumbnailUrl: null, frameId: 101,
-    images: [{ url: null, tint: '#F7B9A6', format: 'PNG', sizeBytes: 2_400_000 }],
-  },
-  {
-    id: 'job-gen-1', title: '벚꽃 공원 무드', kind: 'PHOTO', pipeline: 'GENERATIVE', status: 'DONE', progress: 100, imageCount: 4,
-    createdAt: minutesAgo(60 * 48), tints: ['#F2C7D4'], thumbnailUrl: null, frameId: 101,
-    requirementText: '벚꽃이 흩날리는 봄 공원에서 같이 웃고 있는 느낌으로, 따뜻한 필름 색감',
-    images: ['#F2C7D4', '#F9D68A', '#B9C3F7', '#A8DCC6'].map((tint) => ({ url: null, tint, format: 'PNG' as const, sizeBytes: 3_100_000 })),
-  },
-  {
-    id: 'job-video-1', title: '챌린지 영상', kind: 'VIDEO', pipeline: 'CV', status: 'DONE', progress: 100, imageCount: 1,
-    createdAt: minutesAgo(60 * 72), tints: ['#B9C3F7'], thumbnailUrl: null, durationSec: 15, frameId: null,
-    images: [{ url: null, tint: '#B9C3F7', format: 'MP4', sizeBytes: 8_200_000 }],
-  },
-  {
-    id: 'job-cv-2', title: '무대 뒤 셀카', kind: 'PHOTO', pipeline: 'CV', status: 'DONE', progress: 100, imageCount: 1,
-    createdAt: minutesAgo(60 * 96), tints: ['#FDE3D6', '#E4E2FB'], thumbnailUrl: null, frameId: 102,
-    images: [{ url: null, tint: '#FDE3D6', format: 'PNG', sizeBytes: 1_900_000 }],
-  },
-];
+/** 더 이상 상태가 바뀌지 않는 작업인지 */
+export const isFinished = (status: JobStatus) => toStatus(status) !== 'PROCESSING';
 
-const summary = ({ images, frameId, ...rest }: Stored): GalleryItem => rest;
+/** 실패·취소된 작업을 사용자에게 보여줄 문구 */
+export function failureText(job: Pick<JobResponse, 'status'>): string {
+  if (job.status === 'ENGINE_TIMEOUT') return '생성 시간이 너무 오래 걸렸어요';
+  if (job.status === 'CANCELED') return '취소된 작업이에요';
+  return '잠시 후 다시 시도해 주세요';
+}
 
+function titleOf(job: JobResponse) {
+  const text = job.requirementText?.trim();
+  if (text) return text.length > 20 ? `${text.slice(0, 20)}…` : text;
+  return job.mediaType === 'VIDEO' ? '내 영상' : '내 AI 네컷';
+}
+
+function toItem(job: JobResponse, previews: GalleryApiItem[] = []): GalleryItem {
+  const kind: GalleryKind = job.mediaType === 'VIDEO' ? 'VIDEO' : 'PHOTO';
+  const status = toStatus(job.status);
+  const first = previews[0];
+  return {
+    id: job.id,
+    title: titleOf(job),
+    kind,
+    pipeline: job.pipelineType,
+    status,
+    progress: status === 'DONE' ? 100 : job.progress,
+    imageCount: job.imageCount,
+    createdAt: job.createdAt,
+    tints: kind === 'PHOTO' && job.pipelineType === 'CV' ? TINTS : [tintOf(job.id)],
+    thumbnailUrl: first?.thumbnailPreviewUrl ?? first?.resultPreviewUrl ?? null,
+    failureReason: status === 'FAILED' ? failureText(job) : undefined,
+    requirementText: job.requirementText ?? undefined,
+  };
+}
+
+async function fetchPreviews(): Promise<Map<string, GalleryApiItem[]>> {
+  const rows = await request<GalleryApiItem[]>('/gallery');
+  const byJob = new Map<string, GalleryApiItem[]>();
+  for (const row of rows) {
+    const list = byJob.get(row.jobId);
+    if (list) list.push(row);
+    else byJob.set(row.jobId, [row]);
+  }
+  return byJob;
+}
+
+/** 작업 1건 조회. 생성 진행 화면이 주기적으로 호출한다 */
+export function getJob(id: string): Promise<JobResponse> {
+  return request<JobResponse>(`/jobs/${id}`);
+}
+
+/** 내 작업 전체(생성 중·실패 포함)에 완료된 결과의 이미지 주소를 붙여 갤러리 목록으로 만든다 */
 export async function getGallery(params: { kind?: GalleryKind | null; status?: GalleryStatus | null } = {}): Promise<GalleryItem[]> {
-  await delay();
-  return items
+  const [jobs, previews] = await Promise.all([request<JobResponse[]>('/jobs'), fetchPreviews()]);
+  return jobs
+    .map((job) => toItem(job, previews.get(job.id)))
     .filter((i) => (!params.kind || i.kind === params.kind) && (!params.status || i.status === params.status))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(summary);
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function getResult(id: string): Promise<ResultDetail | null> {
-  await delay();
-  return items.find((i) => i.id === id) ?? null;
+  try {
+    const [job, previews] = await Promise.all([getJob(id), fetchPreviews()]);
+    const rows = previews.get(id) ?? [];
+    const format: ResultImage['format'] = job.mediaType === 'VIDEO' ? 'MP4' : 'PNG';
+    const urls = rows.length > 0 ? rows.map((r) => r.resultPreviewUrl) : job.results.map(() => null);
+    const images: ResultImage[] = urls.map((url, i) => ({ url, tint: TINTS[i % TINTS.length], format, sizeBytes: null }));
+    return { ...toItem(job, rows), images, frameId: job.frameId };
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
 }
 
-export async function deleteResults(ids: string[]): Promise<void> {
-  await delay(300);
-  items = items.filter((i) => !ids.includes(i.id));
+// TODO: 서버에 완료된 결과를 지우는 API가 생기면 연결한다. DELETE /api/v1/jobs/{id}는 진행 중 작업의 취소용이다
+export async function deleteResults(_ids: string[]): Promise<void> {
+  throw new Error('결과 삭제는 아직 지원하지 않아요.');
 }
 
-/** 생성 요청이 접수되면 갤러리에 '생성 중' 항목을 만든다 (서버에서는 잡 생성과 동시에 조회 가능) */
-export function registerJob(jobId: string, req: CreateJobRequest, meta: { title: string; tints: string[] }) {
-  const generative = !!req.requirementText;
-  items = [
-    {
-      id: jobId, title: meta.title, kind: 'PHOTO', pipeline: generative ? 'GENERATIVE' : 'CV', status: 'PROCESSING', progress: 0,
-      imageCount: generative ? (req.imageCount ?? 1) : 1, createdAt: new Date().toISOString(),
-      tints: generative ? [meta.tints[0]] : meta.tints, thumbnailUrl: null, requirementText: req.requirementText,
-      frameId: req.frameId, images: [],
-    },
-    ...items,
-  ];
-}
-
-/** 목업 진행률 반영. 실제로는 SSE 이벤트로 서버 상태가 바뀐다 */
-export function updateMockJob(jobId: string, progress: number) {
-  items = items.map((i) => {
-    if (i.id !== jobId) return i;
-    if (progress < 100) return { ...i, progress };
-    const tints = i.pipeline === 'GENERATIVE' ? ['#F2C7D4', '#F9D68A', '#B9C3F7', '#A8DCC6'].slice(0, i.imageCount) : [i.tints[0]];
-    return { ...i, status: 'DONE', progress: 100, images: tints.map((tint) => ({ url: null, tint, format: 'PNG', sizeBytes: 2_600_000 })) };
-  });
-}
-
-/** 실패한 잡 다시 시도: 같은 항목을 '생성 중'으로 되돌린다 */
-export async function retryJob(id: string): Promise<void> {
-  await delay(300);
-  items = items.map((i) => (i.id === id ? { ...i, status: 'PROCESSING', progress: 0, failureReason: undefined } : i));
+// TODO: 원래 작업의 입력을 서버가 재사용하는 API가 생기면 연결한다
+export async function retryJob(_id: string): Promise<void> {
+  throw new Error('다시 시도는 아직 지원하지 않아요.');
 }
