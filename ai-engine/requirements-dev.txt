@@ -1,3 +1,4 @@
 -r requirements.txt
+redis>=5.0
 pytest
 pytest-asyncio
