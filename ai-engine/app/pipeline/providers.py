@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.integration.prompt_cache import prompt_plan_cache
 
 
 class ProviderConfigurationError(RuntimeError):
@@ -198,9 +199,13 @@ async def plan_prompt(
     frame_manifest: dict | None = None,
     vision_features: dict | None = None,
 ) -> PromptPlan:
+    cache_key = prompt_plan_cache.key(user_text, media_type, frame_manifest, vision_features)
+    cached = await prompt_plan_cache.get(cache_key)
+    if cached:
+        return PromptPlan.model_validate(cached)
     human_message = build_human_message(user_text, media_type, frame_manifest, vision_features)
     if not settings.openai_api_key:
-        return PromptPlan(
+        plan = PromptPlan(
             scene=user_text.strip(),
             mood="natural",
             style="photorealistic",
@@ -212,6 +217,8 @@ async def plan_prompt(
                 "no text, logos, or watermark",
             ],
         )
+        await prompt_plan_cache.set(cache_key, plan.model_dump())
+        return plan
 
     try:
         from openai import OpenAI
@@ -240,7 +247,9 @@ async def plan_prompt(
         response = _run_with_retries(request, "prompt planning")
         return PromptPlan.model_validate(json.loads(response.output_text))
 
-    return await asyncio.to_thread(call)
+    plan = await asyncio.to_thread(call)
+    await prompt_plan_cache.set(cache_key, plan.model_dump())
+    return plan
 
 
 async def generate_image(

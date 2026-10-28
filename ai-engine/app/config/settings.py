@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     aws_region: str = "ap-northeast-2"
     aws_s3_endpoint: str = ""
     kafka_enabled: bool = False
+    kafka_dlq_topic: str = "compose.request.dlq"
+    kafka_max_retries: int = 3
+    kafka_retry_backoff_seconds: float = 2.0
+    prompt_cache_backend: str = "memory"
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    prompt_cache_ttl_seconds: int = 86400
     callback_timeout_seconds: float = 10.0
     callback_max_retries: int = 3
     segmentation_backend: str = "fallback"
