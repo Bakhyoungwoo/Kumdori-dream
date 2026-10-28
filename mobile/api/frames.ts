@@ -53,8 +53,21 @@ export async function getFrame(id: string): Promise<FrameDetail | null> {
   };
 }
 
+/** backend QuotaDtos.Response */
+type QuotaResponse = {
+  dailyLimit: number;
+  dailyUsed: number;
+  dailyRemaining: number;
+  globalLimit: number;
+  globalUsed: number;
+  globalRemaining: number;
+  date: string;
+};
+
+/** 개인 일일 한도와 서비스 전체 한도 중 먼저 바닥나는 쪽 기준으로 남은 장수를 계산한다 */
 export async function getQuota(): Promise<Quota> {
-  return request<Quota>('/users/me/quota');
+  const q = await request<QuotaResponse>('/users/me/quota');
+  return { remaining: Math.max(0, Math.min(q.dailyRemaining, q.globalRemaining)), limit: q.dailyLimit };
 }
 
 const newIdempotencyKey = () =>
