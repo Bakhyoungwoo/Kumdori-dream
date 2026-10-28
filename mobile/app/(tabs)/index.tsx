@@ -1,23 +1,28 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { getQuota } from '@/api/frames';
+import { getGallery } from '@/api/gallery';
 import { ModeCard } from '@/components/ModeCard';
 import { useAsync } from '@/hooks/useAsync';
 import { QuotaBadge } from '@/components/QuotaBadge';
 import { BellIcon } from '@/components/icons';
 import { colors, fonts, layout, radius, type } from '@/theme/tokens';
 
-// TODO: 최근 결과 API(GET /api/v1/gallery)로 교체
-const recent = [
-  ['#F7B9A6', '#B9C3F7', '#F9D68A', '#A8DCC6'],
-  ['#FDE3D6', '#E4E2FB', '#FDE3D6', '#E4E2FB'],
-  ['#A8DCC6', '#F9D68A', '#B9C3F7', '#F7B9A6'],
-];
+const RECENT_COUNT = 3;
 
 export default function HomeScreen() {
   // 쿼터는 생성형에만 적용되므로 모드 카드는 막지 않는다 (기본 합성은 항상 무료)
-  const { data: quota } = useAsync(getQuota, []);
+  const { data: quota, reload: reloadQuota } = useAsync(getQuota, []);
+  const { data: recent, reload: reloadRecent } = useAsync(() => getGallery({ status: 'DONE' }).then((l) => l.slice(0, RECENT_COUNT)), []);
+  // 다른 탭에서 돌아올 때마다 새로 만든 결과와 남은 횟수를 반영한다
+  useFocusEffect(
+    useCallback(() => {
+      reloadQuota();
+      reloadRecent();
+    }, [reloadQuota, reloadRecent]),
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -48,12 +53,21 @@ export default function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.recent}>
-          {recent.map((strip, i) => (
-            <View key={i} style={[styles.strip, i === 0 && { backgroundColor: colors.ink }]}>
-              {strip.map((c, j) => (
-                <View key={j} style={[styles.cut, { backgroundColor: c }]} />
-              ))}
-            </View>
+          {recent && recent.length === 0 && <Text style={type.caption}>아직 만든 결과물이 없어요</Text>}
+          {recent?.map((item, i) => (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title} 결과 보기`}
+              onPress={() => router.push(`/results/${item.id}`)}
+              style={[styles.strip, i === 0 && { backgroundColor: colors.ink }]}
+            >
+              {item.thumbnailUrl ? (
+                <Image source={{ uri: item.thumbnailUrl }} style={styles.thumb} resizeMode="cover" accessibilityIgnoresInvertColors />
+              ) : (
+                item.tints.map((c, j) => <View key={j} style={[styles.cut, { backgroundColor: c }]} />)
+              )}
+            </Pressable>
           ))}
         </View>
       </ScrollView>
@@ -88,6 +102,7 @@ const styles = StyleSheet.create({
   recent: { flexDirection: 'row', gap: 10 },
   strip: {
     flex: 1,
+    maxWidth: '32%', // 결과가 1~2개여도 한 칸 크기를 유지
     aspectRatio: 0.64, // 네컷 스트립 비율 유지
     padding: 6,
     gap: 4,
@@ -97,4 +112,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cut: { flex: 1, borderRadius: 4 },
+  thumb: { flex: 1, borderRadius: 4 },
 });
