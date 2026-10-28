@@ -15,6 +15,7 @@ import com.ourcut.user.domain.User;
 import com.ourcut.user.repository.UserRepository;
 import com.ourcut.global.storage.ObjectUrlResolver;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,6 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
+import java.time.Instant;
 import com.ourcut.job.dto.GalleryDtos;
 
 @Service
@@ -32,16 +35,21 @@ public class ComposeJobService {
     private final FrameRepository frames;
     private final ObjectMapper objectMapper;
     private final ObjectUrlResolver urls;
+    private final ApplicationEventPublisher eventPublisher;
+    private final GenerationQuotaService quota;
 
     public ComposeJobService(ComposeJobRepository jobs, OutboxEventRepository outbox,
                              UserRepository users, FrameRepository frames, ObjectMapper objectMapper,
-                             ObjectUrlResolver urls) {
+                             ObjectUrlResolver urls, ApplicationEventPublisher eventPublisher,
+                             GenerationQuotaService quota) {
         this.jobs = jobs;
         this.outbox = outbox;
         this.users = users;
         this.frames = frames;
         this.objectMapper = objectMapper;
         this.urls = urls;
+        this.eventPublisher = eventPublisher;
+        this.quota = quota;
     }
 
     @Transactional
@@ -59,6 +67,7 @@ public class ComposeJobService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found"));
 
         validateRequest(userId, request, frame);
+        quota.reserve(userId, request);
 
         String requirementText = request.normalizedRequirementText();
         ComposeJob job = jobs.save(new ComposeJob(
@@ -94,18 +103,36 @@ public class ComposeJobService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public GalleryDtos.PageResponse galleryPage(UUID userId, int limit, String before) {
+        int pageSize = Math.max(1, Math.min(limit, 50));
+        Instant cursor = before == null || before.isBlank() ? null : Instant.parse(before);
+        var jobsPage = cursor == null
+            ? jobs.findByUserIdAndStatusOrderByFinishedAtDesc(userId, com.ourcut.job.domain.ComposeJobStatus.DONE, PageRequest.of(0, pageSize + 1))
+            : jobs.findByUserIdAndStatusAndFinishedAtBeforeOrderByFinishedAtDesc(userId, com.ourcut.job.domain.ComposeJobStatus.DONE, cursor, PageRequest.of(0, pageSize + 1));
+        boolean hasNext = jobsPage.size() > pageSize;
+        var items = jobsPage.stream().limit(pageSize).flatMap(job -> job.getResults().stream().map(result -> new GalleryDtos.Item(
+            job.getId(), job.getFrame() == null ? null : job.getFrame().getId(), result.getResultKey(), result.getThumbnailKey(),
+            urls.resolve(result.getResultKey()), urls.resolve(result.getThumbnailKey()),
+            job.getFinishedAt() == null ? null : job.getFinishedAt().toString()))).toList();
+        String next = hasNext && !jobsPage.isEmpty() ? jobsPage.get(pageSize).getFinishedAt().toString() : null;
+        return new GalleryDtos.PageResponse(items, next);
+    }
+
     @Transactional
     public void cancel(UUID userId, UUID jobId) {
         ComposeJob job = ownedJob(userId, jobId);
         job.cancel();
+        eventPublisher.publishEvent(ProgressEvent.from(job));
     }
 
     @Transactional
     public JobDtos.JobResponse callback(UUID jobId, JobDtos.JobCallbackRequest request) {
-        ComposeJob job = jobs.findById(jobId)
+        ComposeJob job = jobs.findByIdForUpdate(jobId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
         if (job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.DONE
             || job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.FAILED
+            || job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.ENGINE_TIMEOUT
             || job.getStatus() == com.ourcut.job.domain.ComposeJobStatus.CANCELED) {
             return JobDtos.JobResponse.from(job);
         }
@@ -126,6 +153,7 @@ public class ComposeJobService {
         } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported callback status");
         }
+        eventPublisher.publishEvent(ProgressEvent.from(job));
         return JobDtos.JobResponse.from(job);
     }
 
@@ -136,8 +164,15 @@ public class ComposeJobService {
     }
 
     private void validateRequest(UUID userId, JobDtos.CreateJobRequest request, Frame frame) {
-        if (frame != null && (frame.getOwner() != null || frame.getSourceType() != com.ourcut.character.domain.FrameSourceType.CHARACTER)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found");
+        if (frame != null) {
+            boolean officialFrame = frame.getSourceType() == com.ourcut.character.domain.FrameSourceType.CHARACTER
+                && frame.getCharacter() != null && frame.getOwner() == null;
+            boolean ownedCustomFrame = frame.getSourceType() == com.ourcut.character.domain.FrameSourceType.USER_UPLOADED
+                && frame.getOwner() != null && frame.getOwner().getId().equals(userId)
+                && frame.getCharacter() == null;
+            if (!officialFrame && !ownedCustomFrame) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Frame not found");
+            }
         }
         String requirement = request.normalizedRequirementText();
         if (request.resolvedMediaType() == MediaType.VIDEO && request.pipelineType() != PipelineType.GENERATIVE) {
