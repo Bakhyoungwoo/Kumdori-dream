@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { deleteResults, getGallery, retryJob } from '@/api/gallery';
+import { deleteResults, getGallery } from '@/api/gallery';
 import type { GalleryItem, GalleryKind, GalleryStatus } from '@/api/types';
 import { BottomSheet } from '@/components/BottomSheet';
 import { BottomBar } from '@/components/BottomBar';
@@ -35,8 +35,15 @@ export default function GalleryScreen() {
   const [deleting, setDeleting] = useState(false);
   const { toast, show } = useToast();
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(() => {
-    getGallery().then(setAll);
+    getGallery()
+      .then((items) => {
+        setAll(items);
+        setLoadError(null);
+      })
+      .catch((e) => setLoadError(e instanceof Error ? e.message : '목록을 불러오지 못했어요.'));
   }, []);
   // 탭으로 돌아올 때마다 새로 불러온다 (생성 완료·삭제 반영)
   useFocusEffect(load);
@@ -68,12 +75,6 @@ export default function GalleryScreen() {
     else if (item.status === 'PROCESSING') router.push(`/jobs/${item.id}`);
   }
 
-  async function retry(item: GalleryItem) {
-    await retryJob(item.id);
-    show('다시 만들기 시작했어요');
-    router.push(`/jobs/${item.id}`);
-  }
-
   async function removeSelected() {
     setDeleting(true);
     try {
@@ -82,9 +83,20 @@ export default function GalleryScreen() {
       setConfirmDelete(false);
       exitSelect();
       load();
+    } catch (e) {
+      setConfirmDelete(false);
+      show(e instanceof Error ? e.message : '삭제하지 못했어요');
     } finally {
       setDeleting(false);
     }
+  }
+
+  if (!all && loadError) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }} edges={['top']}>
+        <EmptyState pose="think" title="목록을 불러오지 못했어요" description={loadError} actionLabel="다시 시도" onAction={load} />
+      </SafeAreaView>
+    );
   }
 
   if (all && all.length === 0) {
@@ -185,7 +197,6 @@ export default function GalleryScreen() {
                   setSelecting(true);
                   setSelected(new Set([item.id]));
                 }}
-                onRetry={() => retry(item)}
               />
             </View>
           ) : (
