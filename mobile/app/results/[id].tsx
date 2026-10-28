@@ -58,6 +58,9 @@ export default function ResultScreen() {
       // 갤러리 위에 쌓인 화면이면 돌아가고(포커스 시 목록 갱신), 아니면 갤러리 탭으로 이동
       if (router.canGoBack()) router.back();
       else router.replace('/gallery');
+    } catch (e) {
+      setSheet(null);
+      show(e instanceof Error ? e.message : '삭제하지 못했어요');
     } finally {
       setBusy(false);
     }
@@ -122,7 +125,7 @@ export default function ResultScreen() {
             <Action label="신고" icon="flag" onPress={() => setSheet('report')} />
           </View>
           <Button
-            title={`${video ? '영상' : count > 1 ? '이 사진' : '기기에'} 저장 · ${image?.format ?? 'PNG'} ${image ? formatBytes(image.sizeBytes) : ''}`}
+            title={`${video ? '영상' : count > 1 ? '이 사진' : '기기에'} 저장 · ${image?.format ?? 'PNG'} ${image?.sizeBytes != null ? formatBytes(image.sizeBytes) : ''}`}
             onPress={notReady}
           />
           {count > 1 && (
