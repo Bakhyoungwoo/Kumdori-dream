@@ -17,7 +17,11 @@ async def process_request(payload: dict[str, Any]) -> None:
         logger.error("compose request has no job_id")
         return
 
-    await report_started(job_id)
+    try:
+        await report_started(job_id)
+    except Exception:
+        logger.exception("unable to notify Core API that job started", extra={"job_id": job_id})
+        return
     try:
         result: dict[str, Any] = dict(payload)
         run_config = {
@@ -45,13 +49,20 @@ async def process_request(payload: dict[str, Any]) -> None:
         await report_done(job_id, result.get("result_keys", []), result.get("thumbnail_key"))
     except NotImplementedError:
         logger.exception("pipeline is not implemented", extra={"job_id": job_id})
-        await report_failed(job_id, "UNSUPPORTED_PIPELINE", retryable=False)
+        await _safe_report_failed(job_id, "UNSUPPORTED_PIPELINE")
     except (ValueError, FileNotFoundError):
         logger.exception("invalid compose request", extra={"job_id": job_id})
-        await report_failed(job_id, "INVALID_INPUT", retryable=False)
+        await _safe_report_failed(job_id, "INVALID_INPUT")
     except Exception:
         logger.exception("compose request failed", extra={"job_id": job_id})
-        await report_failed(job_id, "ENGINE_ERROR", retryable=True)
+        await _safe_report_failed(job_id, "ENGINE_ERROR")
+
+
+async def _safe_report_failed(job_id: str, error_code: str) -> None:
+    try:
+        await report_failed(job_id, error_code, retryable=True)
+    except Exception:
+        logger.exception("unable to notify Core API that job failed", extra={"job_id": job_id})
 
 
 async def consume_requests() -> None:
