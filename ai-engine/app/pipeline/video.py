@@ -36,14 +36,22 @@ def compose_video(
         _write_bytes(source_path, background)
 
     capture = cv2.VideoCapture(str(source_path))
-    is_video = capture.isOpened()
-    if is_video:
+    capture_opened = capture.isOpened()
+    if capture_opened:
         width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         source_fps = capture.get(cv2.CAP_PROP_FPS)
         fps = source_fps if source_fps and source_fps > 1 else fps
         frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        is_video = frame_count > 0 and width > 0 and height > 0
     else:
+        image = Image.open(BytesIO(background)).convert("RGBA")
+        width, height = image.size
+        frame_count = max(1, round(fps * duration_seconds))
+        is_video = False
+
+    if not is_video:
+        capture.release()
         image = Image.open(BytesIO(background)).convert("RGBA")
         width, height = image.size
         frame_count = max(1, round(fps * duration_seconds))
