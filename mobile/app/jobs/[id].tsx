@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -6,45 +6,37 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { Button } from '@/components/Button';
 import { Mascot } from '@/components/Mascot';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { updateMockJob } from '@/api/gallery';
+import { failureText, isFinished } from '@/api/gallery';
 import { composeDraft } from '@/hooks/useComposeDraft';
+import { useJobProgress } from '@/hooks/useJobProgress';
 import { colors, fonts, layout, radius, type } from '@/theme/tokens';
 
 // 사진(CV) 파이프라인 단계 — docs/DEVELOPMENT_PLAN.md 의 진행률 단계와 맞춘다
 const STEPS = ['업로드', '인물 분리', '위치 정렬', '색감 보정', '프레임 조립'] as const;
 
-// TODO: GET /api/v1/jobs/{id}/stream (SSE) 연결. 지금은 진행률을 흉내 낸다
-function useMockProgress() {
-  const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setProgress((p) => (p >= 100 ? 100 : p + 5)), 300);
-    return () => clearInterval(t);
-  }, []);
-  return progress;
-}
-
 export default function JobScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const progress = useMockProgress();
-  useEffect(() => {
-    updateMockJob(id, progress); // 목업: 갤러리 항목에도 진행률 반영
-  }, [id, progress]);
+  const { job, error } = useJobProgress(id);
+  const progress = job?.status === 'DONE' ? 100 : (job?.progress ?? 0);
   useEffect(() => {
     // 요청이 접수됐으니 작성 중이던 입력은 비운다
     composeDraft.reset();
   }, []);
-  const done = progress >= 100;
+  const done = job?.status === 'DONE';
+  const failed = job != null && isFinished(job.status) && !done;
   const current = Math.min(STEPS.length - 1, Math.floor((progress / 100) * STEPS.length));
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title={done ? '완성' : '사진 생성 중'} onBack={() => router.replace('/')} />
+      <ScreenHeader title={done ? '완성' : failed ? '생성 실패' : '사진 생성 중'} onBack={() => router.replace('/')} />
       <View style={styles.content}>
         <Mascot pose={done ? 'cheer' : 'think'} size={190} decor label={done ? '완성을 축하하는 마스코트' : '집중하는 마스코트'} />
         <Text style={styles.title} accessibilityLiveRegion="polite">
-          {done ? '완성됐어요!' : '열심히 만들고 있어요'}
+          {done ? '완성됐어요!' : failed ? '만들지 못했어요' : '열심히 만들고 있어요'}
         </Text>
-        {!done && (
+        {failed && <Text style={type.caption}>{failureText(job)}</Text>}
+        {error && !failed && <Text style={type.caption}>{error}</Text>}
+        {!done && !failed && (
           <Text style={type.caption}>
             현재 단계: <Text style={{ fontFamily: fonts.bold, color: colors.ink }}>{STEPS[current]} 중</Text>
           </Text>
@@ -62,7 +54,7 @@ export default function JobScreen() {
 
         <View style={styles.steps}>
           {STEPS.map((s, i) => {
-            const state = done || i < current ? 'done' : i === current ? 'active' : 'wait';
+            const state = done || i < current ? 'done' : i === current && !failed ? 'active' : 'wait';
             return (
               <View key={s} style={styles.step}>
                 <StepIcon state={state} />
@@ -78,6 +70,11 @@ export default function JobScreen() {
       <View style={styles.bottom}>
         {done ? (
           <Button title="결과 보기" onPress={() => router.replace(`/results/${id}`)} />
+        ) : failed ? (
+          <>
+            <Button title="다시 만들기" onPress={() => router.replace('/frames')} />
+            <Button variant="secondary" title="갤러리로 이동" onPress={() => router.replace('/gallery')} />
+          </>
         ) : (
           <>
             <Text style={[type.caption, { textAlign: 'center' }]}>앱을 닫아도 작업은 계속돼요. 완료되면 알려드릴게요.</Text>
