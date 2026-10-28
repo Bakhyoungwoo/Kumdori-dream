@@ -14,4 +14,6 @@ public final class GalleryDtos {
         String thumbnailPreviewUrl,
         String createdAt
     ) {}
+
+    public record PageResponse(java.util.List<Item> items, String nextCursor) {}
 }
