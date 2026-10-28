@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
+import com.ourcut.job.repository.ComposeJobRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class OutboxRelayKafkaIntegrationTest {
     @Test
@@ -28,10 +30,11 @@ class OutboxRelayKafkaIntegrationTest {
             producer.send("compose.request", "baseline", "baseline-event").get(10, TimeUnit.SECONDS);
 
             OutboxEventRepository events = mock(OutboxEventRepository.class);
+            ComposeJobRepository jobs = mock(ComposeJobRepository.class);
             OutboxEvent event = new OutboxEvent(UUID.randomUUID(), "COMPOSE_REQUESTED", "{}");
             relayProducer = new KafkaTemplate<>(
                 new DefaultKafkaProducerFactory<>(producerProperties(kafka.getBrokersAsString())));
-            OutboxRelay relay = new OutboxRelay(events, relayProducer, "compose.request", 50);
+            OutboxRelay relay = new OutboxRelay(events, jobs, relayProducer, new SimpleMeterRegistry(), "compose.request", 50);
 
             // 장애는 테스트 외부에서 주입하지 않고, 통합 테스트 시나리오 중 브로커 종료로 발생시킨다.
             kafka.destroy();

@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,5 +20,12 @@ public class GalleryController {
     @GetMapping
     public List<GalleryDtos.Item> list(@AuthenticationPrincipal UUID userId) {
         return jobs.gallery(userId);
+    }
+
+    @GetMapping("/page")
+    public GalleryDtos.PageResponse page(@AuthenticationPrincipal UUID userId,
+                                         @RequestParam(defaultValue = "20") int limit,
+                                         @RequestParam(required = false) String before) {
+        return jobs.galleryPage(userId, limit, before);
     }
 }

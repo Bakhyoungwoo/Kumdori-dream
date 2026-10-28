@@ -12,3 +12,4 @@ opencv-python-headless
 pillow
 openai
 google-genai
+redis>=5.0

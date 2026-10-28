@@ -10,4 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # TODO: Python 의존성 설치/테스트 스텝 추가 예정
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ai-engine/requirements-dev.txt
+      - name: Install dependencies
+        working-directory: ai-engine
+        run: pip install -r requirements-dev.txt
+      - name: Test
+        working-directory: ai-engine
+        env:
+          PYTHONPATH: .
+        run: pytest -q
